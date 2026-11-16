@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spitogatos Tracker</title>
+<style>
+:root{--bg:#1a1a2e;--card:#222240;--accent:#7c5cff;--green:#4ade80;--gold:#fbbf24;--red:#f87171;--gray:#6b7280;--text:#e2e8f0;--muted:#94a3b8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}
+.header{padding:16px 24px;background:var(--card);border-bottom:1px solid #333;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+.header h1{font-size:18px;font-weight:600}
+.header .badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:12px}
+.header .refresh{margin-left:auto;cursor:pointer;background:var(--accent);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px}
+.header .refresh:hover{opacity:.85}
+.stats{display:flex;gap:12px;padding:12px 24px;flex-wrap:wrap}
+.stat-card{background:var(--card);border-radius:8px;padding:12px 16px;min-width:100px}
+.stat-card .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:22px;font-weight:700;margin-top:2px}
+.stat-card .value.green{color:var(--green)}
+.stat-card .value.gold{color:var(--gold)}
+.filters{padding:8px 24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters label{color:var(--muted);font-size:12px}
+.filters select,.filters input{background:var(--card);color:var(--text);border:1px solid #333;border-radius:6px;padding:4px 8px;font-size:13px}
+.filters select:focus,.filters input:focus{outline:1px solid var(--accent)}
+.tabs{display:flex;gap:4px;padding:0 24px 8px}
+.tab{padding:6px 14px;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px;color:var(--muted);border:1px solid transparent;border-bottom:none}
+.tab.active{background:var(--card);color:var(--accent);border-color:#333}
+.tab:hover{color:var(--text)}
+.listings{padding:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.card{background:var(--card);border-radius:10px;overflow:hidden;transition:transform .15s,border-color .15s;border:1px solid transparent}
+.card:hover{transform:translateY(-2px);border-color:#333}
+.card.new{border-color:var(--green)}
+.card.top{border-color:var(--gold)}
+.card.reduced{border-color:var(--red)}
+.card.removed{opacity:.5}
+.card-img{height:160px;background:#2a2a3e;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;position:relative}
+.card-img img{width:100%;height:100%;object-fit:cover}
+.card-details{margin-top:10px;border-top:1px solid #444;padding-top:8px;font-size:12px}
+.card-details summary{cursor:pointer;color:var(--accent)}
+.card-details h3{font-size:12px;margin:10px 0 3px}
+.card-details p,.card-details pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);font:inherit}
+.card-details .photos{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.card-details .photos a{color:var(--accent)}
+.card-badge{position:absolute;top:8px;left:8px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase}
+.badge-new{background:var(--green);color:#0a1a0e}
+.badge-top{background:var(--gold);color:#1a1a0e}
+.badge-drop{background:var(--red);color:#fff}
+.badge-removed{background:var(--gray);color:#fff}
+.card-body{padding:12px}
+.card-price{font-size:20px;font-weight:700;color:var(--green)}
+.card-price .old{color:var(--red);text-decoration:line-through;font-size:14px;margin-left:6px}
+.card-meta{display:flex;gap:8px;margin-top:4px;font-size:12px;color:var(--muted)}
+.card-meta span{white-space:nowrap}
+.card-area{color:var(--text);font-weight:500;margin-top:6px;font-size:13px}
+.card-desc{color:var(--muted);font-size:12px;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-tags{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#2a2a3e;color:var(--muted)}
+.tag.elevator{color:var(--accent)}
+.tag.gas{color:var(--green)}
+.tag.new{color:var(--gold)}
+.tag.nocomm{color:var(--red)}
+.card-link{margin-top:8px}
+.card-link a{color:var(--accent);text-decoration:none;font-size:12px}
+.card-link a:hover{text-decoration:underline}
+.empty{text-align:center;padding:48px;color:var(--muted)}
+.score-bar{height:4px;background:#2a2a3e;border-radius:2px;margin-top:8px;overflow:hidden}
+.score-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:2px}
+.loading{text-align:center;padding:48px;color:var(--muted)}
+@media(max-width:600px){.listings{grid-template-columns:1fr}.stats{padding:8px}.header{padding:12px}}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Spitogatos Tracker</h1>
+<span class="badge">Nea Smyrni</span>
+<button class="refresh" onclick="loadAll()">Refresh</button>
+</div>
+<div class="stats" id="stats"></div>
+<div class="filters">
+<label>View</label>
+<select id="filter" onchange="render()">
+<option value="verified">Full Ad Pages</option>
+<option value="all">All Listings (including legacy cards)</option>
+<option value="legacy">Legacy Cards Only</option>
+<option value="new">New Only</option>
+<option value="top">Top Picks</option>
+<option value="reduced">Price Drops</option>
+<option value="removed">Removed</option>
+<option value="A_investment_1br">1-Bed Investment</option>
+<option value="B_residence_2br">2-Bed Residence</option>
+</select>
+<label>Sort</label>
+<select id="sort" onchange="render()">
+<option value="score">Best Score</option>
+<option value="price_asc">Price Low→High</option>
+<option value="price_desc">Price High→Low</option>
+<option value="pps_asc">€/sqm Low→High</option>
+<option value="pps_desc">€/sqm High→Low</option>
+<option value="size_desc">Size Large→Small</option>
+<option value="newest">Newest First</option>
+</select>
+<input type="text" id="search" placeholder="Search area, price, size..." oninput="render()" style="width:200px">
+</div>
+<div class="listings" id="listings"><div class="loading">Loading listings...</div></div>
+<script>
+let allListings=[],stats={};
+const today=new Date().toISOString().split('T')[0];
+function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+async function loadAll(){
+  try{
+    const[lRes,dRes,sRes]=await Promise.all([
+      fetch('api/listings').then(r=>r.json()),
+      fetch('api/daily').then(r=>r.json()),
+      fetch('api/stats').then(r=>r.json())
+    ]);
+    allListings=lRes;
+    stats=sRes;
+    renderStats();
+    render();
+  }catch(e){
+    document.getElementById('listings').innerHTML='<div class="empty">Error loading: '+e.message+'</div>';
+  }
+}
+
+function renderStats(){
+  const el=document.getElementById('stats');
+  const full=allListings.filter(l=>l.detail);
+  const legacy=allListings.length-full.length;
+  el.innerHTML=`
+    <div class="stat-card"><div class="label">Full Ads</div><div class="value">${full.length}</div></div>
+    <div class="stat-card"><div class="label">New</div><div class="value green">${full.filter(l=>l.status==='new').length}</div></div>
+    <div class="stat-card"><div class="label">Active</div><div class="value">${full.filter(l=>l.status==='active').length}</div></div>
+    <div class="stat-card"><div class="label">Legacy Cards</div><div class="value">${legacy}</div></div>
+    <div class="stat-card"><div class="label">Top Score</div><div class="value gold">${full.length?Math.max(...full.map(l=>l.score||0)):'-'}</div></div>
+  `;
+}
+
+function render(){
+  const filter=document.getElementById('filter').value;
+  const sort=document.getElementById('sort').value;
+  const search=document.getElementById('search').value.toLowerCase();
+  let list=[...allListings];
+  
+  // Keep old card-only data accessible without mixing it with verified ads.
+  if(filter==='verified') list=list.filter(l=>l.detail);
+  else if(filter==='legacy') list=list.filter(l=>!l.detail);
+  else if(filter==='new') list=list.filter(l=>l.detail&&l.status==='new');
+  else if(filter==='top') list=list.filter(l=>l.detail&&(l.score||0)>=50).sort((a,b)=>(b.score||0)-(a.score||0));
+  else if(filter==='reduced') list=list.filter(l=>l.detail&&l.price_reduced);
+  else if(filter==='removed') list=list.filter(l=>l.status&&l.status.includes('removed'));
+  else if(filter==='A_investment_1br'||filter==='B_residence_2br') list=list.filter(l=>l.detail&&(l.search_ids||[]).includes(filter));
+  
+  // Search
+  if(search){
+    list=list.filter(l=>{
+      const s=JSON.stringify(l).toLowerCase();
+      return s.includes(search);
+    });
+  }
+  
+  // Sort
+  if(filter!=='top'){
+    list.sort((a,b)=>{
+      switch(sort){
+        case'price_asc':return(a.price_eur||1e9)-(b.price_eur||1e9);
+        case'price_desc':return(b.price_eur||0)-(a.price_eur||0);
+        case'pps_asc':return pps(a)-pps(b);
+        case'pps_desc':return pps(b)-pps(a);
+        case'size_desc':return(b.size_sqm||0)-(a.size_sqm||0);
+        case'newest':return(b.first_seen||'').localeCompare(a.first_seen||'');
+        default:return(b.score||0)-(a.score||0);
+      }
+    });
+  }
+  
+  const container=document.getElementById('listings');
+  if(list.length===0){
+    container.innerHTML='<div class="empty">No listings match this filter.</div>';
+    return;
+  }
+  
+  container.innerHTML=list.map(l=>{
+    const isNew=l.status==='new';
+    const isTop=(l.score||0)>=50;
+    const isReduced=l.price_reduced;
+    const isRemoved=l.status&&l.status.includes('removed');
+    const cls=isNew?'new':isTop?'top':isReduced?'reduced':isRemoved?'removed':'';
+    const pricePerSqm=l.price_eur&&l.size_sqm?Math.round(l.price_eur/l.size_sqm):null;
+    const scorePct=Math.min(100,(l.score||0));
+    
+    let badges='';
+    if(isNew) badges+='<span class="card-badge badg'+(isNew?'e-new':'')+'">NEW</span>';
+    if(isTop) badges+='<span class="card-badge badg'+(isTop?'e-top':'')+'">TOP</span>';
+    if(isReduced) badges+='<span class="card-badge badg'+(isReduced?'e-drop':'')+'">DROP</span>';
+    if(isRemoved) badges+='<span class="card-badge badg'+(isRemoved?'e-removed':'')+'">GONE</span>';
+    
+    let tags='';
+    if(l.has_elevator) tags+='<span class="tag elevator">Elevator</span>';
+    if(l.has_gas_heating) tags+='<span class="tag gas">Gas Heat</span>';
+    if(l.is_new_build) tags+='<span class="tag new">New Build</span>';
+    if(l.renovated) tags+='<span class="tag">Renovated</span>';
+    if(l.no_commission) tags+='<span class="tag nocomm">No Commission</span>';
+    if(l.energy_class) tags+='<span class="tag">Energy '+l.energy_class+'</span>';
+    
+    const oldPrice=l.price_history&&l.price_history.length>1
+      ?l.price_history[l.price_history.length-2].price:null;
+    const priceDisplay=l.price_eur?'€'+l.price_eur.toLocaleString():'Price N/A';
+    const oldPriceDisplay=oldPrice&&oldPrice!==l.price_eur?'<span class="old">€'+oldPrice.toLocaleString()+'</span>':'';
+    
+    const firstSeen=l.first_seen||'';
+    const daysAgo=firstSeen?Math.round((new Date(l.last_seen||l.first_seen)-new Date(firstSeen))/86400000):null;
+    
+    const photos=(l.detail?.photo_urls||[]).filter(u=>/^https:\/\/m\d+\.spitogatos\.gr\//.test(u));
+    const details=l.detail;
+    const detailsHtml=details?`<details class="card-details"><summary>Full listing details</summary>
+      <h3>Description</h3><p>${esc(details.description)}</p>
+      <h3>Characteristics</h3><pre>${esc(details.characteristics_text)}</pre>
+      <div>Published: ${esc(details.published||'—')} · Updated: ${esc(details.updated||'—')} · Available: ${esc(details.availability||'—')}</div>
+      ${photos.length?`<div class="photos">${photos.map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">Photo ${i+1}</a>`).join(' ')}</div>`:''}
+    </details>`:'';
+    return `<div class="card ${cls}">
+      <div class="card-img">${photos.length?`<img loading="lazy" src="${esc(photos[0])}" alt="Listing photo">`:'<span class="no-photo">No photo</span>'}${badges}</div>
+      <div class="card-body">
+        <div class="card-price">${priceDisplay}${oldPriceDisplay}</div>
+        <div class="card-meta">
+          <span>${l.size_sqm||'?'}sqm</span>
+          <span>${l.floor?l.floor+'fl':'-'}</span>
+          <span>${l.bedrooms?l.bedrooms+'bed':'-'}</span>
+          <span>${l.bathrooms?l.bathrooms+'bath':'-'}</span>
+          ${pricePerSqm?'<span>'+pricePerSqm+'€/sqm</span>':''}
+          ${daysAgo!==null?'<span>'+daysAgo+'d ago</span>':''}
+        </div>
+        <div class="card-area">${esc(l.area||'Nea Smyrni')}</div>
+        ${l.description?'<div class="card-desc">'+esc(l.description)+'</div>':''}
+        <div class="score-bar"><div class="score-fill" style="width:${scorePct}%"></div></div>
+        <div class="card-tags">${tags}</div>
+        ${detailsHtml}
+        <div class="card-link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">View on Spitogatos →</a></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function pps(l){return l.price_eur&&l.size_sqm?l.price_eur/l.size_sqm:1e9}
+
+loadAll();
+</script>
+</body>
+</html>
