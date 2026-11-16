@@ -89,6 +89,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <option value="removed">Removed</option>
 <option value="A_investment_1br">1-Bed Investment</option>
 <option value="B_residence_2br">2-Bed Residence</option>
+<option value="C_piraeus_univ_1br">Piraeus Univ 1-Bed</option>
 </select>
 <label>Sort</label>
 <select id="sort" onchange="render()">
@@ -150,7 +151,7 @@ function render(){
   else if(filter==='top') list=list.filter(l=>l.detail&&(l.score||0)>=50).sort((a,b)=>(b.score||0)-(a.score||0));
   else if(filter==='reduced') list=list.filter(l=>l.detail&&l.price_reduced);
   else if(filter==='removed') list=list.filter(l=>l.status&&l.status.includes('removed'));
-  else if(filter==='A_investment_1br'||filter==='B_residence_2br') list=list.filter(l=>l.detail&&(l.search_ids||[]).includes(filter));
+  else if(filter==='A_investment_1br'||filter==='B_residence_2br'||filter==='C_piraeus_univ_1br') list=list.filter(l=>l.detail&&(l.search_ids||[]).includes(filter));
   
   // Search
   if(search){
