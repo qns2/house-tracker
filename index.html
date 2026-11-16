@@ -1,251 +1,385 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>House Tracker</title>
 <style>
-:root{--bg:#1a1a2e;--card:#222240;--accent:#7c5cff;--green:#4ade80;--gold:#fbbf24;--red:#f87171;--gray:#6b7280;--text:#e2e8f0;--muted:#94a3b8}
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}
-.header{padding:16px 24px;background:var(--card);border-bottom:1px solid #333;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
-.header h1{font-size:18px;font-weight:600}
-.header .badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:12px}
-.header .refresh{margin-left:auto;cursor:pointer;background:var(--accent);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px}
-.header .refresh:hover{opacity:.85}
-.stats{display:flex;gap:12px;padding:12px 24px;flex-wrap:wrap}
-.stat-card{background:var(--card);border-radius:8px;padding:12px 16px;min-width:100px}
-.stat-card .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-.stat-card .value{font-size:22px;font-weight:700;margin-top:2px}
-.stat-card .value.green{color:var(--green)}
-.stat-card .value.gold{color:var(--gold)}
-.filters{padding:8px 24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.filters label{color:var(--muted);font-size:12px}
-.filters select,.filters input{background:var(--card);color:var(--text);border:1px solid #333;border-radius:6px;padding:4px 8px;font-size:13px}
-.filters select:focus,.filters input:focus{outline:1px solid var(--accent)}
-.tabs{display:flex;gap:4px;padding:0 24px 8px}
-.tab{padding:6px 14px;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px;color:var(--muted);border:1px solid transparent;border-bottom:none}
-.tab.active{background:var(--card);color:var(--accent);border-color:#333}
-.tab:hover{color:var(--text)}
-.listings{padding:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
-.card{background:var(--card);border-radius:10px;overflow:hidden;transition:transform .15s,border-color .15s;border:1px solid transparent}
-.card:hover{transform:translateY(-2px);border-color:#333}
-.card.new{border-color:var(--green)}
-.card.top{border-color:var(--gold)}
-.card.reduced{border-color:var(--red)}
-.card.removed{opacity:.5}
-.card-img{height:160px;background:#2a2a3e;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;position:relative}
+:root{--bg:#151524;--card:#1e1e30;--accent:#7f8ff4;--good:#4fd08a;--bad:#e4796b;--warn:#e0b45c;--muted:#9aa0b5;--muted2:#6d7389;--border:#2c2c44;--text:#e8eaf6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+a{color:#9fb0ff}
+header{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#181828;position:sticky;top:0;z-index:5}
+header h1{font-size:19px;margin:0 8px 0 0;font-weight:600}
+.fresh{font-size:12.5px;color:var(--muted);line-height:1.35}
+.fresh b{color:#c6cbe0}
+.btn{background:#26263d;color:#dfe3ff;border:1px solid #3a3a58;border-radius:9px;padding:8px 14px;font-size:13.5px}
+.btn:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,.mini-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{padding:10px 18px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls select,.controls input[type=search]{background:#20203a;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13.5px}
+.controls input[type=search]{min-width:220px}
+#summary{font-size:12.5px;color:var(--muted);margin-left:auto}
+#listings{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:16px 18px 40px}
+@media(max-width:640px){#listings{grid-template-columns:1fr;padding:10px}header{padding:10px}.controls{padding:8px 10px}.controls input[type=search]{min-width:0;flex:1 1 140px}}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.card.top{border-color:#4d4d7a}
+.card.removed{opacity:.55}
+.card-img{position:relative;height:150px;background:#101020;display:flex;align-items:center;justify-content:center}
 .card-img img{width:100%;height:100%;object-fit:cover}
-.card-details{margin-top:10px;border-top:1px solid #444;padding-top:8px;font-size:12px}
-.card-details summary{cursor:pointer;color:var(--accent)}
-.card-details h3{font-size:12px;margin:10px 0 3px}
-.card-details p,.card-details pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);font:inherit}
-.card-details .photos{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.card-details .photos a{color:var(--accent)}
-.card-badge{position:absolute;top:8px;left:8px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase}
-.badge-new{background:var(--green);color:#0a1a0e}
-.badge-top{background:var(--gold);color:#1a1a0e}
-.badge-drop{background:var(--red);color:#fff}
-.badge-removed{background:var(--gray);color:#fff}
-.card-body{padding:12px}
-.card-price{font-size:20px;font-weight:700;color:var(--green)}
-.card-price .old{color:var(--red);text-decoration:line-through;font-size:14px;margin-left:6px}
-.card-meta{display:flex;gap:8px;margin-top:4px;font-size:12px;color:var(--muted)}
-.card-meta span{white-space:nowrap}
-.card-area{color:var(--text);font-weight:500;margin-top:6px;font-size:13px}
-.card-desc{color:var(--muted);font-size:12px;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card-tags{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
-.tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#2a2a3e;color:var(--muted)}
-.tag.elevator{color:var(--accent)}
-.tag.gas{color:var(--green)}
-.tag.new{color:var(--gold)}
-.tag.nocomm{color:var(--red)}
-.card-link{margin-top:8px}
-.card-link a{color:var(--accent);text-decoration:none;font-size:12px}
-.card-link a:hover{text-decoration:underline}
-.empty{text-align:center;padding:48px;color:var(--muted)}
-.score-bar{height:4px;background:#2a2a3e;border-radius:2px;margin-top:8px;overflow:hidden}
-.score-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:2px}
-.loading{text-align:center;padding:48px;color:var(--muted)}
-@media(max-width:600px){.listings{grid-template-columns:1fr}.stats{padding:8px}.header{padding:12px}}
+.no-photo{color:var(--muted2);font-size:12px}
+.badges{position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap}
+.card-badge{font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:3px 8px;border-radius:7px;background:#000000b0}
+.badge-newmarket{color:#9ff0c5}.badge-newdisc{color:#c4a9ff}.badge-updated{color:#ffd58e}.badge-removed{color:#ff9d94}.badge-review{color:#a8d8ff}
+.card-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.card-price{font-size:21px;font-weight:700}
+.mv-down{color:var(--good)}.mv-up{color:var(--bad)}.mv-flat{color:var(--muted)}
+.old-price{font-size:13px;color:var(--muted2);text-decoration:line-through}
+.score-chip{font-size:12px;background:#262640;border-radius:8px;padding:4px 8px;text-align:right;line-height:1.25}
+.score-chip .s{font-weight:700;font-size:15px;color:#cdd3ff}
+.score-chip .c{color:var(--muted)}
+.card-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--muted)}
+.card-area{font-size:13px}
+.card-area .act{color:#c9cff2;font-weight:600}
+.card-area .mut{color:var(--muted2);text-decoration:line-through}
+.loc-warn{color:var(--warn);font-size:11.5px}
+.card-desc{font-size:12.5px;color:#b9bfd8;max-height:37px;overflow:hidden;line-height:1.32}
+.cons{font-size:12px;display:flex;flex-wrap:wrap;gap:4px}
+.cons span{background:#20203a;border-radius:6px;padding:2px 8px;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cons .pro{color:#9ff0c5}.cons .con{color:#ffb0a6}
+.card-tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:11px;border-radius:6px;padding:2.5px 8px;background:#232347;color:#aab2d5}
+.tag.yes{color:#9ff0c5}.tag.no{color:#c9a0ff}
+.grp-chip{font-size:11.5px;color:var(--warn);background:#2b2536;border-radius:6px;padding:3px 8px}
+.val-chip{font-size:11.5px;color:var(--muted)}
+.card-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:2px}
+.mini-btn{font-size:15px;background:#23233c;border:1px solid #3a3a58;border-radius:8px;padding:6px 10px;min-width:44px;min-height:36px;text-align:center;color:#dfe3ff}
+.mini-btn.on{border-color:var(--accent);color:#fff;background:#2b2b52}
+.rev-note{font-size:11.5px;color:var(--warn)}
+.card-foot{margin-top:auto}
+.card-foot a{font-size:13px;text-decoration:none}
+.empty{padding:30px;color:var(--muted);grid-column:1/-1;text-align:center}
+#modal{position:fixed;inset:0;background:#000000b8;display:none;align-items:flex-start;justify-content:center;z-index:50;padding:24px 12px;overflow:auto}
+#modal.open{display:flex}
+#modal .panel{background:#1c1c2e;border:1px solid var(--border);border-radius:14px;max-width:780px;width:100%;padding:20px 22px;max-height:calc(100vh - 40px);overflow:auto}
+#modal h2{margin:0 0 2px;font-size:20px}
+#modal h3{margin:16px 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+#modal .close{float:right;font-size:22px;background:none;border:none;color:var(--muted);min-width:44px;min-height:40px}
+#modal table{border-collapse:collapse;width:100%;font-size:13px}
+#modal td{padding:4px 8px;border-bottom:1px solid #2a2a42;vertical-align:top;overflow-wrap:anywhere}
+#modal td.v{color:#cdd3ff;font-weight:600}
+#modal .ev{color:var(--muted2);font-size:11.5px}
+#modal .ph a{display:inline-block;margin:3px 8px 3px 0;font-size:13px}
+#modal .frow td{border-bottom:none;padding:2.5px 8px}
+.fmissing{color:var(--muted2)}
 </style>
 </head>
 <body>
-<div class="header">
-<h1>House Tracker</h1>
-<span class="badge">Nea Smyrni</span>
-<button class="refresh" onclick="loadAll()">Refresh</button>
+<header>
+  <h1>House Tracker</h1>
+  <button class="btn" id="refreshBtn" aria-label="Reload listings from the local store (no new portal scan)">Reload data</button>
+  <div class="fresh" id="freshness" aria-live="polite">loading…</div>
+  <div id="summary"></div>
+</header>
+<div class="controls">
+  <label for="filter" style="color:var(--muted);font-size:12.5px">Filter</label>
+  <select id="filter" onchange="render()">
+    <option value="verified" selected>All listings (ad pages)</option>
+    <option value="all">Everything (incl. snapshot cards)</option>
+    <option value="newmarket">New on market</option>
+    <option value="newdisc">Newly discovered</option>
+    <option value="updated">Updated / price moved</option>
+    <option value="shortlisted">Shortlisted</option>
+    <option value="reviewed">Reviewed</option>
+    <option value="dismissed">Dismissed</option>
+    <option value="grouped">Duplicate groups</option>
+    <option value="removed">Removed</option>
+    <option value="reduced">Price reduced</option>
+    <option value="increased">Price increased</option>
+    <option value="top">Top by score</option>
+    <option value="A_investment_1br">1-Bed Investment (NS)</option>
+    <option value="B_residence_2br">2-Bed Residence (NS)</option>
+    <option value="C_piraeus_univ_1br">Piraeus Univ 1-Bed</option>
+    <option value="legacy">Legacy cards only</option>
+  </select>
+  <label for="sort" style="color:var(--muted);font-size:12.5px">Sort</label>
+  <select id="sort" onchange="render()">
+    <option value="score">Best score</option>
+    <option value="drop_pct">Biggest % price change</option>
+    <option value="drop_abs">Biggest € price change</option>
+    <option value="change_recent">Most recent change</option>
+    <option value="price_asc">Price low→high</option>
+    <option value="price_desc">Price high→low</option>
+    <option value="pps_asc">€/sqm low→high</option>
+    <option value="pps_desc">€/sqm high→low</option>
+    <option value="size_desc">Size large→small</option>
+    <option value="newest">Latest published/discovered</option>
+  </select>
+  <input type="search" id="search" placeholder="Search area, keywords…" oninput="render()" aria-label="Search listings">
 </div>
-<div class="stats" id="stats"></div>
-<div class="filters">
-<label>View</label>
-<select id="filter" onchange="render()">
-<option value="verified">Full Ad Pages</option>
-<option value="all">All Listings (including legacy cards)</option>
-<option value="legacy">Legacy Cards Only</option>
-<option value="new">New Only</option>
-<option value="top">Top Picks</option>
-<option value="reduced">Price Drops</option>
-<option value="removed">Removed</option>
-<option value="A_investment_1br">1-Bed Investment</option>
-<option value="B_residence_2br">2-Bed Residence</option>
-<option value="C_piraeus_univ_1br">Piraeus Univ 1-Bed</option>
-</select>
-<label>Sort</label>
-<select id="sort" onchange="render()">
-<option value="score">Best Score</option>
-<option value="price_asc">Price Low→High</option>
-<option value="price_desc">Price High→Low</option>
-<option value="pps_asc">€/sqm Low→High</option>
-<option value="pps_desc">€/sqm High→Low</option>
-<option value="size_desc">Size Large→Small</option>
-<option value="newest">Newest First</option>
-</select>
-<input type="text" id="search" placeholder="Search area, price, size..." oninput="render()" style="width:200px">
+<main id="listings" tabindex="-1"><div class="empty">Loading listings…</div></main>
+
+<div id="modal" role="dialog" aria-modal="true" aria-label="Listing details" onclick="if(event.target===this)closeModal()">
+  <div class="panel" id="modalPanel"></div>
 </div>
-<div class="listings" id="listings"><div class="loading">Loading listings...</div></div>
+
 <script>
-let allListings=[],stats={};
-const today=new Date().toISOString().split('T')[0];
+let allListings=[],stats={},meta={};
+const REV_KEY='houseTracker.reviews.v1';
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function pps(l){return (l.price_eur&&l.size_sqm>0)?l.price_eur/l.size_sqm:1e9}
+function money(n){return n?Number(n).toLocaleString('en-US')+' €':''}
+function fmtShort(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7):'—'}
+function reviews(){try{return JSON.parse(localStorage.getItem(REV_KEY))||{}}catch(e){return{}}}
 
 async function loadAll(){
   try{
-    const[lRes,dRes,sRes]=await Promise.all([
+    const[lRes,dRes,sRes,mRes]=await Promise.all([
       fetch('api/listings').then(r=>r.json()),
       fetch('api/daily').then(r=>r.json()),
-      fetch('api/stats').then(r=>r.json())
+      fetch('api/stats').then(r=>r.json()),
+      fetch('api/meta').then(r=>r.json()).catch(()=>({}))
     ]);
-    allListings=lRes;
-    stats=sRes;
-    renderStats();
+    allListings=lRes;stats=sRes;meta=mRes||{};
+    document.getElementById('refreshBtn').textContent='Reloaded '+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
     render();
   }catch(e){
-    document.getElementById('listings').innerHTML='<div class="empty">Error loading: '+e.message+'</div>';
+    document.getElementById('listings').innerHTML='<div class="empty">Data unavailable: '+esc(String(e))+'</div>';
   }
 }
 
-function renderStats(){
-  const el=document.getElementById('stats');
-  const full=allListings.filter(l=>l.detail);
-  const legacy=allListings.length-full.length;
-  el.innerHTML=`
-    <div class="stat-card"><div class="label">Full Ads</div><div class="value">${full.length}</div></div>
-    <div class="stat-card"><div class="label">New</div><div class="value green">${full.filter(l=>l.status==='new').length}</div></div>
-    <div class="stat-card"><div class="label">Active</div><div class="value">${full.filter(l=>l.status==='active').length}</div></div>
-    <div class="stat-card"><div class="label">Legacy Cards</div><div class="value">${legacy}</div></div>
-    <div class="stat-card"><div class="label">Top Score</div><div class="value gold">${full.length?Math.max(...full.map(l=>l.score||0)):'-'}</div></div>
-  `;
+function matchesFilter(l,filter,rev){
+  const label=l.status_label||'';
+  switch(filter){
+    case'verified':return !!l.detail;
+    case'all':return true;
+    case'legacy':return !l.detail;
+    case'newmarket':return label==='NEW ON MARKET';
+    case'newdisc':return label==='NEWLY DISCOVERED';
+    case'updated':return label==='UPDATED'||((l.movement||{}).direction==='down'||(l.movement||{}).direction==='up');
+    case'reduced':return !!(l.movement&&l.movement.reduced);
+    case'increased':return !!(l.movement&&l.movement.increased);
+    case'grouped':return !!(l.group&&l.group.n_ads>1);
+    case'removed':return !!(l.status&&l.status.includes('removed'));
+    case'top':return (l.score_v2||l.score||0)>=55;
+    case'shortlisted':return !!(rev[l.id]&&rev[l.id].state==='shortlist');
+    case'reviewed':return !!(rev[l.id]&&rev[l.id].state==='reviewed');
+    case'dismissed':return !!(rev[l.id]&&rev[l.id].state==='dismissed');
+    case'A_investment_1br':case'B_residence_2br':case'C_piraeus_univ_1br':
+      return (l.search_ids||[]).includes(filter);
+  }
+  return true;
 }
 
 function render(){
   const filter=document.getElementById('filter').value;
   const sort=document.getElementById('sort').value;
   const search=document.getElementById('search').value.toLowerCase();
-  let list=[...allListings];
-  
-  // Keep old card-only data accessible without mixing it with verified ads.
-  if(filter==='verified') list=list.filter(l=>l.detail);
-  else if(filter==='legacy') list=list.filter(l=>!l.detail);
-  else if(filter==='new') list=list.filter(l=>l.detail&&l.status==='new');
-  else if(filter==='top') list=list.filter(l=>l.detail&&(l.score||0)>=50).sort((a,b)=>(b.score||0)-(a.score||0));
-  else if(filter==='reduced') list=list.filter(l=>l.detail&&l.price_reduced);
-  else if(filter==='removed') list=list.filter(l=>l.status&&l.status.includes('removed'));
-  else if(filter==='A_investment_1br'||filter==='B_residence_2br'||filter==='C_piraeus_univ_1br') list=list.filter(l=>l.detail&&(l.search_ids||[]).includes(filter));
-  
-  // Search
+  const rev=reviews();
+  let list=[...allListings].filter(l=>matchesFilter(l,filter,rev)&&!(rev[l.id]&&rev[l.id].state==='dismissed'&&filter!=='dismissed'));
   if(search){
     list=list.filter(l=>{
-      const s=JSON.stringify(l).toLowerCase();
-      return s.includes(search);
+      const loc=((l.location||{}).actual_city||'')+' '+((l.location||{}).advertised||'')+' '+((l.location||{}).evidence||'')+' '+(l.area||'');
+      return JSON.stringify(l).toLowerCase().includes(search)||loc.toLowerCase().includes(search);
     });
   }
-  
-  // Sort
-  if(filter!=='top'){
-    list.sort((a,b)=>{
-      switch(sort){
-        case'price_asc':return(a.price_eur||1e9)-(b.price_eur||1e9);
-        case'price_desc':return(b.price_eur||0)-(a.price_eur||0);
-        case'pps_asc':return pps(a)-pps(b);
-        case'pps_desc':return pps(b)-pps(a);
-        case'size_desc':return(b.size_sqm||0)-(a.size_sqm||0);
-        case'newest':return(b.first_seen||'').localeCompare(a.first_seen||'');
-        default:return(b.score||0)-(a.score||0);
-      }
-    });
-  }
-  
+  const mvAbs=l=>(l.movement&&l.movement.abs_change!=null)?Math.abs(l.movement.abs_change):0;
+  const mvPct=l=>(l.movement&&l.movement.pct_change!=null)?Math.abs(l.movement.pct_change):-1;
+  const dateOf=l=>(l.dates&&(l.dates.published||l.dates.first_seen))||l.first_seen||'';
+  list.sort((a,b)=>{
+    switch(sort){
+      case'drop_pct':return mvPct(b)-(b.movement&&b.movement.reduced?0.5:0)-(mvPct(a)-(a.movement&&a.movement.reduced?0.5:0));
+      case'drop_abs':return mvAbs(b)-(b.movement&&b.movement.reduced?0.5:0)-(mvAbs(a)-(a.movement&&a.movement.reduced?0.5:0));
+      case'change_recent':return new Date(((b.movement||{}).previous_date||'2000-01-01'))-new Date(((a.movement||{}).previous_date||'2000-01-01'));
+      case'price_asc':return(a.price_eur||1e9)-(b.price_eur||1e9);
+      case'price_desc':return(b.price_eur||0)-(a.price_eur||0);
+      case'pps_asc':return pps(a)-pps(b);
+      case'pps_desc':return pps(b)-pps(a);
+      case'size_desc':return(b.size_sqm||0)-(a.size_sqm||0);
+      case'newest':return dateOf(b).localeCompare(dateOf(a));
+      default:return(b.score_v2!=null?b.score_v2:(b.score||0))-(a.score_v2!=null?a.score_v2:(a.score||0));
+    }
+  });
+  document.getElementById('summary').textContent=
+    list.length+' shown · '+Object.keys(rev).filter(k=>rev[k].state==='shortlist').length+' shortlisted · '+(meta.groups||0)+' dup groups';
+  document.getElementById('freshness').innerHTML=
+    'Last data collection: <b>'+(meta.last_scan_at?fmtShort(meta.last_scan_at)+' '+(meta.last_scan_at||'').slice(11,16):'unknown')+'</b> · runs daily 11:00 · page reloaded <b>'+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+'</b>';
+
   const container=document.getElementById('listings');
-  if(list.length===0){
-    container.innerHTML='<div class="empty">No listings match this filter.</div>';
-    return;
-  }
-  
-  container.innerHTML=list.map(l=>{
-    const isNew=l.status==='new';
-    const isTop=(l.score||0)>=50;
-    const isReduced=l.price_reduced;
-    const isRemoved=l.status&&l.status.includes('removed');
-    const cls=isNew?'new':isTop?'top':isReduced?'reduced':isRemoved?'removed':'';
-    const pricePerSqm=l.price_eur&&l.size_sqm?Math.round(l.price_eur/l.size_sqm):null;
-    const scorePct=Math.min(100,(l.score||0));
-    
-    let badges='';
-    if(isNew) badges+='<span class="card-badge badg'+(isNew?'e-new':'')+'">NEW</span>';
-    if(isTop) badges+='<span class="card-badge badg'+(isTop?'e-top':'')+'">TOP</span>';
-    if(isReduced) badges+='<span class="card-badge badg'+(isReduced?'e-drop':'')+'">DROP</span>';
-    if(isRemoved) badges+='<span class="card-badge badg'+(isRemoved?'e-removed':'')+'">GONE</span>';
-    
-    let tags='';
-    if(l.has_elevator) tags+='<span class="tag elevator">Elevator</span>';
-    if(l.has_gas_heating) tags+='<span class="tag gas">Gas Heat</span>';
-    if(l.is_new_build) tags+='<span class="tag new">New Build</span>';
-    if(l.renovated) tags+='<span class="tag">Renovated</span>';
-    if(l.no_commission) tags+='<span class="tag nocomm">No Commission</span>';
-    if(l.energy_class) tags+='<span class="tag">Energy '+l.energy_class+'</span>';
-    
-    const oldPrice=l.price_history&&l.price_history.length>1
-      ?l.price_history[l.price_history.length-2].price:null;
-    const priceDisplay=l.price_eur?'€'+l.price_eur.toLocaleString():'Price N/A';
-    const oldPriceDisplay=oldPrice&&oldPrice!==l.price_eur?'<span class="old">€'+oldPrice.toLocaleString()+'</span>':'';
-    
-    const firstSeen=l.first_seen||'';
-    const daysAgo=firstSeen?Math.round((new Date(l.last_seen||l.first_seen)-new Date(firstSeen))/86400000):null;
-    
-    const photos=(l.detail?.photo_urls||[]).filter(u=>/^https:\/\/m\d+\.[a-z]+\.gr\//.test(u));
-    const details=l.detail;
-    const detailsHtml=details?`<details class="card-details"><summary>Full listing details</summary>
-      <h3>Description</h3><p>${esc(details.description)}</p>
-      <h3>Characteristics</h3><pre>${esc(details.characteristics_text)}</pre>
-      <div>Published: ${esc(details.published||'—')} · Updated: ${esc(details.updated||'—')} · Available: ${esc(details.availability||'—')}</div>
-      ${photos.length?`<div class="photos">${photos.map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">Photo ${i+1}</a>`).join(' ')}</div>`:''}
-    </details>`:'';
-    return `<div class="card ${cls}">
-      <div class="card-img">${photos.length?`<img loading="lazy" src="${esc(photos[0])}" alt="Listing photo">`:'<span class="no-photo">No photo</span>'}${badges}</div>
-      <div class="card-body">
-        <div class="card-price">${priceDisplay}${oldPriceDisplay}</div>
-        <div class="card-meta">
-          <span>${l.size_sqm||'?'}sqm</span>
-          <span>${l.floor?l.floor+'fl':'-'}</span>
-          <span>${l.bedrooms?l.bedrooms+'bed':'-'}</span>
-          <span>${l.bathrooms?l.bathrooms+'bath':'-'}</span>
-          ${pricePerSqm?'<span>'+pricePerSqm+'€/sqm</span>':''}
-          ${daysAgo!==null?'<span>'+daysAgo+'d ago</span>':''}
-        </div>
-        <div class="card-area">${esc(l.area||'Nea Smyrni')}</div>
-        ${l.description?'<div class="card-desc">'+esc(l.description)+'</div>':''}
-        <div class="score-bar"><div class="score-fill" style="width:${scorePct}%"></div></div>
-        <div class="card-tags">${tags}</div>
-        ${detailsHtml}
-        <div class="card-link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">View listing →</a></div>
-      </div>
-    </div>`;
-  }).join('');
+  if(list.length===0){container.innerHTML='<div class="empty">No listings match this filter.</div>';return}
+  container.innerHTML=list.map(l=>cardHtml(l,rev)).join('');
 }
 
-function pps(l){return l.price_eur&&l.size_sqm?l.price_eur/l.size_sqm:1e9}
+function cardHtml(l,rev){
+  const mv=l.movement||{direction:'unknown'};
+  const label=l.status_label||'';
+  const isRemoved=l.status&&l.status.includes('removed');
+  const rv=rev[l.id]||{};
+  const pricePerSqm=(l.price_eur&&l.size_sqm>0)?Math.round(l.price_eur/l.size_sqm):null;
+  const score=(l.score_v2!=null)?l.score_v2:(l.score||0);
+  const prof=l.score_v2_profile||'';
+  const ch=l.characteristics||{};
+  const loc=l.location||{};
+  const d=l.dates||{};
+  const photos=((l.detail||{}).photo_urls||[]).filter(u=>/https:\/\/m\d+\.[a-z]+\.gr\//.test(u));
+  const rvChanged=rv.snap&&rv.snap.price&&l.price_eur&&rv.snap.price!==l.price_eur;
 
+  let badges='';
+  if(label==='NEW ON MARKET')badges+='<span class="card-badge badge-newmarket">NEW ON MARKET</span>';
+  else if(label==='NEWLY DISCOVERED')badges+='<span class="card-badge badge-newdisc">NEWLY DISCOVERED</span>';
+  else if(label==='UPDATED')badges+='<span class="card-badge badge-updated">UPDATED</span>';
+  if(isRemoved)badges+='<span class="card-badge badge-removed">GONE</span>';
+  if(rvChanged)badges+='<span class="card-badge badge-updated">CHANGED</span>';
+  if(rv.state==='shortlist')badges+='<span class="card-badge badge-review">★ SHORTLIST</span>';
+  else if(rv.state==='reviewed')badges+='<span class="card-badge badge-review">✓ REVIEWED</span>';
+
+  let mvHtml='';
+  if(mv.direction==='down'&&mv.pct_change!=null)
+    mvHtml='<span class="mv-down">↓ '+Math.abs(mv.abs_change).toLocaleString('en-US')+' € ('+(mv.pct_change<0?'−':'+')+Math.abs(mv.pct_change).toFixed(1)+'%)</span>';
+  else if(mv.direction==='up'&&mv.pct_change!=null)
+    mvHtml='<span class="mv-up">↑ '+mv.abs_change.toLocaleString('en-US')+' € (+'+mv.pct_change.toFixed(1)+'%)</span>';
+
+  const pro=((l.score_breakdown||{}).strengths||[]).slice(0,2).map(s=>'<span class="pro">✓ '+esc(s.split('(')[0].trim())+'</span>');
+  const con=((l.score_breakdown||{}).weaknesses||[]).slice(0,2).map(s=>'<span class="con">✗ '+esc(s.split('(')[0].trim())+'</span>');
+  let consHtml='';
+  if(pro.length||con.length)consHtml='<div class="cons">'+pro.join('')+con.join('')+'</div>';
+
+  let tags='';
+  if((ch.elevator||{}).state==='yes')tags+='<span class="tag yes">Elevator</span>';
+  else if((ch.elevator||{}).state==='no')tags+='<span class="tag no">No elevator</span>';
+  if((ch.heating_gas||{}).state==='yes')tags+='<span class="tag yes">Gas</span>';
+  const rs=(ch.renovation||{}).state;
+  if(rs==='renovated')tags+='<span class="tag yes">Renovated</span>';
+  else if(rs==='new_build')tags+='<span class="tag yes">New build</span>';
+  else if(rs==='needs_renovation')tags+='<span class="tag no">Needs reno</span>';
+  if((ch.no_commission||{}).state==='yes')tags+='<span class="tag yes">No commission</span>';
+  if(l.energy_class)tags+='<span class="tag">Energy '+esc(l.energy_class)+'</span>';
+  if(l.stale)tags+='<span class="tag no">Not seen since '+fmtShort(d.last_seen)+'</span>';
+
+  const city=loc.actual_city?loc.actual_city[0].toUpperCase()+loc.actual_city.slice(1):'';
+  let areaHtml='<div class="card-area"><span class="act">'+esc(loc.actual_city?city:(l.area||'Unknown area'))+'</span>';
+  if(loc.mismatch&&loc.advertised)areaHtml+=' <span class="mut">advertised: '+esc(loc.advertised)+'</span>';
+  if(loc.ambiguous)areaHtml+=' <span class="loc-warn">⚠ multiple areas: '+esc((loc.actual_tags||[]).map(c=>c[0].toUpperCase()+c.slice(1)).join('/'))+'</span>';
+  areaHtml+='</div>';
+
+  let grp='';
+  if(l.group&&l.group.n_ads>1){
+    const pr=l.group.prices_all||[];
+    grp='<span class="grp-chip">⧉ '+l.group.n_ads+' ads'+(pr.length>1?' · '+money(Math.min.apply(null,pr))+'–'+money(Math.max.apply(null,pr)):'')+' ('+esc(l.group.level||'')+' dup)</span>';
+  }
+  let val='';
+  if(l.valuation&&l.valuation.diff_pct_vs_median!=null)
+    val='<span class="val-chip">'+(l.valuation.diff_pct_vs_median>0?'+':'')+l.valuation.diff_pct_vs_median+'% vs median ('+l.valuation.n_comparables+')</span>';
+
+  const dateStr=d.published&&d.published_missing===false?('published '+fmtShort(d.published)):(d.first_seen?('discovered '+fmtShort(d.first_seen)):'');
+  const rvNote=rv.note?'<span class="rev-note">📝 '+esc(rv.note)+'</span>':'';
+  const cls=isRemoved?'card removed':((l.score_v2||0)>=55?'card top':'card');
+  return '<div class="'+cls+'" data-id="'+esc(l.id)+'">'+
+    '<div class="card-img">'+(photos.length?'<img loading="lazy" src="'+esc(photos[0])+'" alt="Photo of the advertised apartment">':'<span class="no-photo">No photo</span>')+badges+'</div>'+
+    '<div class="card-body">'+
+    '<div class="card-top"><div><div class="card-price">'+money(l.price_eur)+(mv.previous?' <span class="old-price">was '+money(mv.previous)+'</span>':'')+'</div><div>'+mvHtml+'</div></div>'+
+    '<div class="score-chip" title="score 0-100 (profile '+(esc(prof)||'')+'); D = data confidence %"><span class="s">'+(score!=null?score:'—')+'</span> '+prof+'<br><span class="c">D '+(l.data_confidence!=null?l.data_confidence+'%':'?%')+'</span></div></div>'+
+    '<div class="card-meta"><span>'+(l.size_sqm>0?esc(String(l.size_sqm)):'?')+'sqm</span><span>'+(l.floor?esc(String(l.floor)).slice(0,4)+' fl':'fl —')+'</span><span>'+(l.bedrooms?l.bedrooms+' bd':'bd —')+'</span>'+(pricePerSqm?'<span>'+pricePerSqm+' €/sqm</span>':'')+'<span>'+esc(dateStr||'')+'</span></div>'+
+    areaHtml+
+    '<div class="card-meta">'+grp+(val?'<span>'+val+'</span>':'')+'</div>'+
+    (l.description?'<div class="card-desc">'+esc(l.description)+'</div>':'')+
+    consHtml+
+    '<div class="card-tags">'+tags+'</div>'+
+    rvNote+
+    '<div class="card-actions">'+
+    '<button class="mini-btn '+(rv.state==='shortlist'?'on':'')+'" onclick="setReview(\''+esc(l.id)+'\',\'shortlist\')" aria-label="Shortlist this listing" title="Shortlist">★</button>'+
+    '<button class="mini-btn '+(rv.state==='reviewed'?'on':'')+'" onclick="setReview(\''+esc(l.id)+'\',\'reviewed\')" aria-label="Mark reviewed" title="Reviewed">✓</button>'+
+    '<button class="mini-btn '+(rv.state==='dismissed'?'on':'')+'" onclick="setReview(\''+esc(l.id)+'\',\'dismissed\')" aria-label="Dismiss this listing" title="Dismiss">✗</button>'+
+    '<button class="mini-btn" onclick="addNote(\''+esc(l.id)+'\')" aria-label="Add personal note" title="Note">📝</button>'+
+    ((photos.length||l.url)?'<button class="btn" style="padding:6px 12px" onclick="openModal(\''+esc(l.id)+'\')" aria-label="Open full listing details">Details</button>':'')+
+    '</div>'+
+    '<div class="card-foot">'+(l.url?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">View advertisement →</a>':'<span class="tag">snapshot card — no source link</span>')+'</div>'+
+    '</div></div>';
+}
+
+function setReview(id,state){
+  const rev=reviews();
+  const cur=rev[id]||{};
+  const l=(allListings.find(x=>x.id===id))||{};
+  rev[id]={state:(cur.state===state?'none':state),note:cur.note||'',at:new Date().toISOString(),snap:{price:l.price_eur,label:l.status_label||''}};
+  localStorage.setItem(REV_KEY,JSON.stringify(rev));
+  render();
+}
+function addNote(id){
+  const rev=reviews();const cur=rev[id]||{};
+  const n=prompt('Personal note:',cur.note||'');
+  if(n===null)return;
+  const l=(allListings.find(x=>x.id===id))||{};
+  rev[id]={state:cur.state||'none',note:n,at:new Date().toISOString(),snap:cur.snap||{price:l.price_eur}};
+  localStorage.setItem(REV_KEY,JSON.stringify(rev));
+  render();
+}
+
+function openModal(id){
+  const l=(allListings.find(x=>x.id===id));if(!l)return;
+  const mv=l.movement||{},ch=l.characteristics||{},d=l.dates||{},sb=l.score_breakdown||{},loc=l.location||{};
+  const photos=((l.detail||{}).photo_urls||[]).filter(u=>/https:\/\/m\d+\.[a-z]+\.gr\//.test(u));
+  const tri=v=>v==='yes'?'<td class="v" style="color:var(--good)">yes</td>':(v==='no'?'<td class="v" style="color:#c9a0ff">no</td>':'<td class="v fmissing">unknown</td>');
+  let charRows='';
+  [['elevator','Elevator'],['parking','Parking'],['storage','Storage'],['heating_gas','Gas heating'],
+   ['heating_autonomous','Autonomous heating'],['furnished','Furnished'],['no_commission','No commission'],
+   ['renovation','Renovation / condition']].forEach(kp=>{
+    const c=ch[kp[0]]||{state:'unknown'};
+    charRows+='<tr><td>'+kp[1]+'</td>'+tri(c.state)+'<td class="ev">'+esc(c.evidence||'')+'</td></tr>';
+  });
+  const yr=(ch.year_built||{}),en=(ch.energy_class||{});
+  const yrRow='<tr><td>Construction year</td>'+(yr.state==='known'?'<td class="v">'+yr.value+'</td>':'<td class="v fmissing">unknown</td>')+'<td class="ev">'+esc(yr.evidence||'')+'</td></tr>';
+  const enRow='<tr><td>Energy class</td>'+(en.state==='known'?'<td class="v">'+esc(en.value)+'</td>':'<td class="v fmissing">unknown</td>')+'<td class="ev">'+esc(en.evidence||'')+'</td></tr>';
+  const hist=(l.price_history||[]).filter(p=>p&&p.price);
+  const histHtml=hist.length?hist.map((p,i)=>{
+    const nxt=hist[i+1];
+    const arrow=(nxt&&nxt.price!==p.price)?(nxt.price>p.price?' <span class="mv-up">↑ '+money(p.price)+'</span>':' <span class="mv-down">↓ '+money(p.price)+'</span>'):'';
+    return '<div>'+esc(p.date||'?')+' — '+money(p.price)+(i===0?' (first observed)':'')+arrow+'</div>';
+  }).join(''):'<div class="fmissing">No price observations recorded for this advertisement.</div>';
+  const factors=(sb.factors||[]).map(f=>f.state==='known'
+    ?'<tr class="frow"><td>'+esc(f.factor)+'</td><td class="v">'+f.pts+' / '+f.max+'</td><td class="ev">'+esc(f.why)+'</td></tr>'
+    :'<tr class="frow"><td class="fmissing">'+esc(f.factor)+'</td><td class="v fmissing">n/a</td><td class="ev fmissing">missing data — excluded from score</td></tr>').join('');
+  const strengths=((sb.strengths||[]).map(s=>'✓ '+esc(s)).join(' · '));
+  const grpAds=(((l.group||{}).ads||[{url:l.url,source_id:l.id,price_eur:l.price_eur}]))
+    .filter(a=>a&&a.url).map(a=>'<div>· <a href="'+esc(a.url)+'" target="_blank" rel="noopener noreferrer">'+esc(a.source_id)+'</a> — '+money(a.price_eur)+(a.instances>1?' (seen '+a.instances+'×)':'')+'</div>').join('')
+    ||'<div class="fmissing">Snapshot card without a source link (snapshot extraction).</div>';
+  let locHtml='<div>Source label: <b>'+esc(loc.advertised||'—')+'</b>'+(loc.title_city&&loc.title_city!==loc.advertised_city?' · from ad title/first line: <b>'+esc(loc.title_city)+'</b>':'')+'</div>';
+  if(loc.mismatch)locHtml+='<div class="loc-warn">⚠ The advertisement text points to a different area than the search label.</div>';
+  if(loc.ambiguous)locHtml+='<div class="loc-warn">⚠ Text mentions multiple areas: '+esc((loc.actual_tags||[]).join(', '))+'.</div>';
+  locHtml+='<div class="ev">'+esc(loc.evidence||'')+'</div>';
+  if(loc.in_scope===false)locHtml+='<div class="loc-warn">Outside the configured geographic scope of this search.</div>';
+  const ppsTxt=(l.price_eur&&l.size_sqm>0)?('Asking '+Math.round(l.price_eur/l.size_sqm)+' €/sqm'):('—');
+  const valTxt=(l.valuation&&l.valuation.diff_pct_vs_median!=null)
+    ?(' · comparable median '+Math.round(l.valuation.median_pps)+' €/sqm ('+(l.valuation.diff_pct_vs_median>0?'+':'')+l.valuation.diff_pct_vs_median+'% vs median · '+l.valuation.n_comparables+' comparables) — asking prices, not completed transactions.')
+    :(' · no reliable comparable median yet.');
+  document.getElementById('modalPanel').innerHTML=
+    '<button class="close" onclick="closeModal()" aria-label="Close details">✕</button>'+
+    '<h2>'+money(l.price_eur)+' '+(mv.direction==='down'?'<span class="mv-down">↓ '+Math.abs(mv.abs_change||0).toLocaleString('en-US')+' € ('+(mv.pct_change<0?'−':'+')+Math.abs(mv.pct_change||0).toFixed(1)+'%)</span>':(mv.direction==='up'?'<span class="mv-up">↑ +'+(mv.pct_change||0).toFixed(1)+'%</span>':''))+'</h2>'+
+    '<div class="card-area">'+esc(l.area||'')+((loc.mismatch)?' ('+esc(loc.actual_city)+')':'')+'</div>'+
+    '<h3>Overview</h3><table>'+
+    '<tr><td>Size</td><td class="v">'+(l.size_sqm>0?esc(String(l.size_sqm))+' sqm':'—')+'</td><td class="ev">'+ppsTxt+'</td></tr>'+
+    '<tr><td>Bedrooms / floor</td><td class="v">'+(l.bedrooms?esc(String(l.bedrooms)):'—')+' / '+(l.floor?esc(String(l.floor)):'—')+'</td><td class="ev"></td></tr>'+
+    '<tr><td>Published</td><td class="v">'+(d.published?esc(d.published):'unknown')+'</td><td class="ev">'+(d.published_missing?'the source did not provide this date':'from the source advertisement')+'</td></tr>'+
+    '<tr><td>Discovered by tracker</td><td class="v">'+(d.first_seen?esc(d.first_seen):'—')+'</td><td class="ev"></td></tr>'+
+    '<tr><td>Last seen</td><td class="v">'+(d.last_seen?esc(d.last_seen):'—')+'</td><td class="ev">'+(l.stale?'stale — not confirmed for a long time':'')+'</td></tr>'+
+    '<tr><td>Last price update / checked</td><td class="v">'+(d.last_updated?esc(d.last_updated):'—')+' · '+(d.last_checked?esc(d.last_checked):'—')+'</td><td class="ev"></td></tr>'+
+    '<tr><td>Score / data confidence</td><td class="v">'+(l.score_v2!=null?l.score_v2:'—')+' ('+esc(l.score_v2_profile||'')+') / '+(l.data_confidence!=null?l.data_confidence+'%':'—')+'</td><td class="ev">attractiveness and data quality are separate metrics</td></tr></table>'+
+    (l.status_label?'<div style="margin-top:6px"><span class="card-badge '+(l.status_label==='NEW ON MARKET'?'badge-newmarket':(l.status_label==='NEWLY DISCOVERED'?'badge-newdisc':'badge-updated'))+'">'+esc(l.status_label)+'</span></div>':'')+
+    '<h3>Score explanation'+(l.score_v2_profile?' ('+esc(l.score_v2_profile)+'-profile)':'')+'</h3><table>'+factors+'</table>'+
+    (strengths?'<div style="margin-top:6px">Strengths: '+strengths+'</div>':'')+
+    ((sb.weaknesses||[]).length?'<div style="margin-top:4px;color:var(--warn)">Watch-outs: '+sb.weaknesses.map(s=>esc(s)).join(' · ')+'</div>':'')+
+    '<h3>Price history</h3>'+histHtml+
+    '<h3>Characteristics</h3><table>'+charRows+yrRow+enRow+'</table>'+
+    '<h3>Location</h3>'+locHtml+
+    '<h3>Description</h3><p style="white-space:pre-wrap;max-height:240px;overflow:auto;font-size:13px">'+esc((l.detail||{}).description||l.description||'')+'</p>'+
+    (photos.length?'<h3>Photos</h3><div class="ph">'+photos.map((u,i)=>'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Photo '+(i+1)+'</a>').join('')+'</div>':'')+
+    '<h3>Original advertisement'+(((l.group||{}).n_ads>1)?'s (all '+l.group.n_ads+' ads)':'')+'</h3><div class="ph">'+grpAds+'</div>';
+  document.getElementById('modal').classList.add('open');
+  const c=document.getElementById('modalPanel').querySelector('.close');if(c)c.focus();
+}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.getElementById('refreshBtn').addEventListener('click',loadAll);
 loadAll();
 </script>
 </body>
