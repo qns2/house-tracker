@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spitogatos Tracker</title>
+<title>House Tracker</title>
 <style>
 :root{--bg:#1a1a2e;--card:#222240;--accent:#7c5cff;--green:#4ade80;--gold:#fbbf24;--red:#f87171;--gray:#6b7280;--text:#e2e8f0;--muted:#94a3b8}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -72,7 +72,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </head>
 <body>
 <div class="header">
-<h1>Spitogatos Tracker</h1>
+<h1>House Tracker</h1>
 <span class="badge">Nea Smyrni</span>
 <button class="refresh" onclick="loadAll()">Refresh</button>
 </div>
@@ -212,7 +212,7 @@ function render(){
     const firstSeen=l.first_seen||'';
     const daysAgo=firstSeen?Math.round((new Date(l.last_seen||l.first_seen)-new Date(firstSeen))/86400000):null;
     
-    const photos=(l.detail?.photo_urls||[]).filter(u=>/^https:\/\/m\d+\.spitogatos\.gr\//.test(u));
+    const photos=(l.detail?.photo_urls||[]).filter(u=>/^https:\/\/m\d+\.[a-z]+\.gr\//.test(u));
     const details=l.detail;
     const detailsHtml=details?`<details class="card-details"><summary>Full listing details</summary>
       <h3>Description</h3><p>${esc(details.description)}</p>
@@ -237,7 +237,7 @@ function render(){
         <div class="score-bar"><div class="score-fill" style="width:${scorePct}%"></div></div>
         <div class="card-tags">${tags}</div>
         ${detailsHtml}
-        <div class="card-link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">View on Spitogatos →</a></div>
+        <div class="card-link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">View listing →</a></div>
       </div>
     </div>`;
   }).join('');
