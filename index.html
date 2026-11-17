@@ -169,7 +169,7 @@ function buildSearchStrings(){
     const loc=l.location||{};
     const parts=[String(l.id),l.area,l.desc,l.status_label,l.status,l.renovation,l.energy_class,
       loc.actual_city,loc.advertised,loc.title_city,(loc.actual_tags||[]).join(' '),
-      ch.renovation&&ch.renovation.label,
+      ch.renovation&&ch.renovation.label,(ch.energy_class||{}).value,
       (l.size_sqm!=null)?l.size_sqm+'sqm':'',(l.price_eur!=null)?l.price_eur+'€':'',
       l.floor?l.floor+' ορόφου':'',l.bedrooms?l.bedrooms+' bd':''];
     searchStrings.set(l.id,parts.filter(Boolean).join(' ').toLowerCase());
@@ -225,16 +225,18 @@ function currentList(){
   const filter=document.getElementById('filter').value;
   const rev=reviews();
   const search=(document.getElementById('search').value||'').toLowerCase();
-  let list;
-  if(search){
-    list=allListings.filter(l=>matchesFilter(l,filter,rev)&&
-      !(rev[l.id]&&rev[l.id].state==='dismissed'&&filter!=='dismissed')&&
-      (searchStrings.get(l.id)||'').includes(search));
-  }else{
-    list=propertyView(filter).filter(l=>matchesFilter(l,filter,rev)&&
-      !(rev[l.id]&&rev[l.id].state==='dismissed'&&filter!=='dismissed'));
+  const notDismissed=l=>!(rev[l.id]&&rev[l.id].state==='dismissed'&&filter!=='dismissed');
+  // grouped view stays grouped while searching: an ad that matches inside a
+  // likely duplicate group promotes its primary card instead of adding the member
+  const base=propertyView(filter).filter(l=>matchesFilter(l,filter,rev)&&notDismissed(l));
+  if(!search)return base;
+  const memberHits=new Set();
+  for(const l of allListings){
+    const g=l.group&&groupIndex[l.group.property_id];
+    if(g&&l.id!==g.primary_id&&base.some(p=>p.id===g.primary_id)&&
+       (searchStrings.get(l.id)||'').includes(search))memberHits.add(g.primary_id);
   }
-  return list;
+  return base.filter(l=>(searchStrings.get(l.id)||'').includes(search)||memberHits.has(l.id));
 }
 
 function render(){
@@ -317,7 +319,8 @@ function cardHtml(l,rev){
   if((ch.heating_gas||{}).state==='yes')tags+='<span class="tag yes">Gas</span>';
   if(l.renovation)tags+='<span class="tag '+((ch.renovation||{}).state==='needs_renovation'?'no':'yes')+'">'+esc(l.renovation)+'</span>';
   if((ch.no_commission||{}).state==='yes')tags+='<span class="tag yes">No commission</span>';
-  if(l.energy_class)tags+='<span class="tag">Energy '+esc(l.energy_class)+'</span>';
+  const ecParsed=(ch.energy_class||{}).value;
+  if(ecParsed||l.energy_class)tags+='<span class="tag">Energy '+esc(ecParsed||l.energy_class)+'</span>';
   if(l.stale)tags+='<span class="tag no">Not seen since '+fmtShort(d.last_seen)+'</span>';
 
   const city=loc.actual_city?loc.actual_city[0].toUpperCase()+loc.actual_city.slice(1):'';
@@ -349,7 +352,7 @@ function cardHtml(l,rev){
     (mv.previous?' <span class="old-price">was '+money(mv.previous)+'</span>':'')+
     '</div><div>'+mvHtml+'</div></div>'+
     '<div class="score-chip" title="score 0-100 (profile '+(esc(prof)||'')+'); D = data confidence %"><span class="s">'+(score!=null?score:'—')+'</span> '+prof+'<br><span class="c">D '+(l.data_confidence!=null?l.data_confidence+'%':'?%')+'</span></div></div>'+
-    '<div class="card-meta"><span>'+(l.size_sqm>0?esc(String(l.size_sqm)):'?')+'sqm</span><span>'+(l.floor?esc(String(l.floor)).slice(0,4)+' fl':'fl —')+'</span><span>'+(l.bedrooms?l.bedrooms+' bd':'bd —')+'</span>'+(pricePerSqm?'<span>'+pricePerSqm+' €/sqm</span>':'')+'<span>'+esc(dateStr||'')+'</span></div>'+
+    '<div class="card-meta"><span>'+(l.size_sqm>0?esc(String(l.size_sqm)):'?')+'sqm</span><span>'+(l.floor!=null&&l.floor!==''?esc(String(l.floor)).slice(0,4)+' fl':'fl —')+'</span><span>'+(l.bedrooms!=null&&l.bedrooms!==''?l.bedrooms+' bd':'bd —')+'</span>'+(pricePerSqm?'<span>'+pricePerSqm+' €/sqm</span>':'')+'<span>'+esc(dateStr||'')+'</span></div>'+
     areaHtml+
     '<div class="card-meta">'+grp+(val?'<span>'+val+'</span>':'')+'</div>'+
     (l.desc?'<div class="card-desc">'+esc(l.desc)+'</div>':'')+
@@ -386,10 +389,7 @@ function addNote(id){
 }
 function updateSummaryLine(){
   const rev=reviews();
-  const filter=document.getElementById('filter').value;
-  const search=(document.getElementById('search').value||'').toLowerCase();
-  const base=search?allListings:propertyView(filter);
-  const n=base.filter(l=>matchesFilter(l,filter,rev)&&!(rev[l.id]&&rev[l.id].state==='dismissed'&&filter!=='dismissed')).length;
+  const n=currentList().length;
   document.getElementById('summary').textContent=n+' shown · '+
     Object.keys(rev).filter(k=>rev[k].state==='shortlist').length+' shortlisted · '+(meta.groups||0)+' dup groups';
 }
@@ -513,7 +513,7 @@ function renderDetail(l){
     '<div class="card-area">'+esc(l.area||'')+(loc.mismatch?' ('+esc(loc.actual_city)+')':'')+'</div>'+
     '<h3>Overview</h3><table>'+
     '<tr><td>Size</td><td class="v">'+(l.size_sqm>0?esc(String(l.size_sqm))+' sqm':'—')+'</td><td class="ev">'+ppsTxt+'</td></tr>'+
-    '<tr><td>Bedrooms / floor</td><td class="v">'+(l.bedrooms?esc(String(l.bedrooms)):'—')+' / '+(l.floor?esc(String(l.floor)):'—')+'</td><td class="ev"></td></tr>'+
+    '<tr><td>Bedrooms / floor</td><td class="v">'+(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—')+'</td><td class="ev"></td></tr>'+
     '<tr><td>Published</td><td class="v">'+(d.published?esc(d.published):'unknown')+'</td><td class="ev">'+(d.published_missing?'the source did not provide this date':'from the source advertisement')+'</td></tr>'+
     '<tr><td>Discovered by tracker</td><td class="v">'+(d.first_seen?esc(d.first_seen):'—')+'</td><td class="ev"></td></tr>'+
     '<tr><td>Last seen</td><td class="v">'+(d.last_seen?esc(d.last_seen):'—')+'</td><td class="ev">'+(l.stale?'stale — not confirmed for a long time':'')+'</td></tr>'+
