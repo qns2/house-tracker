@@ -320,7 +320,10 @@ function cardHtml(l,rev){
   if(l.renovation)tags+='<span class="tag '+((ch.renovation||{}).state==='needs_renovation'?'no':'yes')+'">'+esc(l.renovation)+'</span>';
   if((ch.no_commission||{}).state==='yes')tags+='<span class="tag yes">No commission</span>';
   const ecParsed=(ch.energy_class||{}).value;
+  const ecState=(ch.energy_class||{}).state;
   if(ecParsed||l.energy_class)tags+='<span class="tag">Energy '+esc(ecParsed||l.energy_class)+'</span>';
+  else if(ecState==='exempt')tags+='<span class="tag mut">Energy: no certificate required (exempt)</span>';
+  else if(ecState==='pending')tags+='<span class="tag mut">Energy: certificate pending</span>';
   if(l.stale)tags+='<span class="tag no">Not seen since '+fmtShort(d.last_seen)+'</span>';
 
   const city=loc.actual_city?loc.actual_city[0].toUpperCase()+loc.actual_city.slice(1):'';
@@ -481,7 +484,8 @@ function renderDetail(l){
   const renRow='<tr><td>Renovation / condition</td><td class="v" style="color:'+renCls+'">'+esc(ren.label||"Unknown condition")+'</td><td class="ev">'+esc(ren.evidence||'')+'</td></tr>';
   const yr=(ch.year_built||{}),en=(ch.energy_class||{});
   const yrRow='<tr><td>Construction year</td>'+(yr.state==='known'?'<td class="v">'+yr.value+'</td>':'<td class="v fmissing">unknown</td>')+'<td class="ev">'+esc(yr.evidence||'')+'</td></tr>';
-  const enRow='<tr><td>Energy class</td>'+(en.state==='known'?'<td class="v">'+esc(en.value)+'</td>':'<td class="v fmissing">unknown</td>')+'<td class="ev">'+esc(en.evidence||'')+'</td></tr>';
+  const enLabel=(en.state==='exempt')?'No certificate required (exempt)':(en.state==='pending')?'Certificate under issuance':null;
+  const enRow='<tr><td>Energy class</td>'+(en.state==='known'?'<td class="v">'+esc(en.value)+'</td>':(enLabel?'<td class="v">'+esc(enLabel)+'</td>':'<td class="v fmissing">unknown</td>'))+'<td class="ev">'+esc(en.evidence||'')+'</td></tr>';
   // server-computed, unit-tested history rows (arrow = change vs PREVIOUS DISTINCT price)
   const hist=(l.history_rows&&l.history_rows.length)?l.history_rows:(l.history||[]);
   const histHtml=hist.length?hist.map((h,i)=>{
