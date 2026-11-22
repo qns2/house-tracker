@@ -395,6 +395,9 @@ function cardHtml(l,rev){
   if((ch.heating||{}).label&&ch.heating.state!=='unknown')tags+='<span class="tag mut">'+esc(ch.heating.label)+'</span>';
   if((ch.parking||{}).state==='yes')tags+='<span class="tag yes">Parking</span>';
   else if((ch.parking||{}).state==='no')tags+='<span class="tag no">No parking</span>';
+  const cst=((ch.construction_status||{}).state);
+  if(cst==='under_construction')tags+='<span class="tag mut">Under construction</span>';
+  else if(cst==='planned')tags+='<span class="tag mut">Off-plan</span>';
   if((ch.storage||{}).state==='yes')tags+='<span class="tag yes">Storage</span>';
   if((ch.furnished||{}).state==='yes')tags+='<span class="tag yes">Furnished</span>';
   else if((ch.furnished||{}).state==='no')tags+='<span class="tag no">Unfurnished</span>';
