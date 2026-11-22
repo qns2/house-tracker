@@ -170,9 +170,20 @@ function buildSearchStrings(){
     const loc=l.location||{};
     const parts=[String(l.id),l.area,l.desc,l.status_label,l.status,l.renovation,l.energy_class,
       loc.actual_city,loc.advertised,loc.title_city,(loc.actual_tags||[]).join(' '),
-      ch.renovation&&ch.renovation.label,(ch.energy_class||{}).value,
-      (l.size_sqm!=null)?l.size_sqm+'sqm':'',(l.price_eur!=null)?l.price_eur+'€':'',
-      l.floor?l.floor+' ορόφου':'',l.bedrooms?l.bedrooms+' bd':''];
+      ch.renovation&&ch.renovation.label,(ch.energy_class||{}).value];
+    // mirror the EXACT visible card tags (state-derived) so search matches what the user sees
+    const st=k=>((ch[k]||{}).state);
+    if(st('elevator')==='yes')parts.push('Elevator');else if(st('elevator')==='no')parts.push('No elevator');
+    if(st('parking')==='yes')parts.push('Parking');else if(st('parking')==='no')parts.push('No parking');
+    if(st('storage')==='yes')parts.push('Storage');
+    if(st('furnished')==='yes')parts.push('Furnished');else if(st('furnished')==='no')parts.push('Unfurnished');
+    if(st('heating_gas')==='yes')parts.push('Gas');
+    if(st('no_commission')==='yes')parts.push('No commission');
+    if(ch.heating&&ch.heating.label&&ch.heating.state!=='unknown')parts.push(ch.heating.label);
+    if(l.size_sqm!=null)parts.push(l.size_sqm+'sqm');
+    if(l.price_eur!=null)parts.push(l.price_eur+'€');
+    if(l.floor)parts.push(l.floor+' ορόφου');
+    if(l.bedrooms)parts.push(l.bedrooms+' bd');
     searchStrings.set(l.id,parts.filter(Boolean).join(' ').toLowerCase());
   }
 }
@@ -294,8 +305,10 @@ function render(){
   const uniqueN=list.filter(l=>l.group&&groupIndex[l.group.property_id]&&l.id===groupIndex[l.group.property_id].primary_id).length;
   const shortN=Object.keys(reviews()).filter(k=>reviews()[k].state==='shortlist').length;
   document.getElementById('summary').textContent=
-    list.length+' shown'+(uniqueN?' ('+uniqueN+' primary cards of grouped properties)':'')+' · '+
-    shortN+' shortlisted · '+(meta.groups_likely||'?')+' confirmed dup groups ('+(meta.groups||0)+' total)';
+    (meta.total_rows||'?')+' records · '+(meta.active_rows||'?')+' active · '+
+    (meta.unique_properties||'?')+' unique properties · '+
+    list.length+' in view'+(uniqueN?' ('+uniqueN+' primary cards of grouped)':'')+' · '+
+    shortN+' shortlisted · '+(meta.groups_likely||'?')+' confirmed + '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible dup groups';
   document.getElementById('freshness').innerHTML=
     'Last data collection: <b>'+(meta.last_scan_at?fmtShort(meta.last_scan_at)+' '+(meta.last_scan_at||'').slice(11,16):'unknown')+
     '</b> · detail refresh ~09:00 + vision harvest 11:00 (Athens local) · page reloaded <b>'+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+'</b>';
@@ -451,8 +464,11 @@ function refreshAfterReview(id){
 function updateSummaryLine(){
   const rev=reviews();
   const n=currentList().length;
-  document.getElementById('summary').textContent=n+' shown · '+
-    Object.keys(rev).filter(k=>rev[k].state==='shortlist').length+' shortlisted · '+(meta.groups||0)+' dup groups';
+  document.getElementById('summary').textContent=
+    (meta.total_rows||'?')+' records · '+(meta.active_rows||'?')+' active · '+
+    (meta.unique_properties||'?')+' unique properties · '+n+' in view · '+
+    Object.keys(rev).filter(k=>rev[k].state==='shortlist').length+' shortlisted · '+
+    (meta.groups_likely||'?')+' confirmed + '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible dup groups';
 }
 // small interactions patch the rendered card in place instead of rebuilding the grid
 function updateCardInPlace(id){
