@@ -177,7 +177,7 @@ function buildSearchStrings(){
     if(st('parking')==='yes')parts.push('Parking');else if(st('parking')==='no')parts.push('No parking');
     if(st('storage')==='yes')parts.push('Storage');
     if(st('furnished')==='yes')parts.push('Furnished');else if(st('furnished')==='no')parts.push('Unfurnished');
-    if(st('heating_gas')==='yes')parts.push('Gas');
+    if(st('heating')==='autonomous_gas')parts.push('Gas');
     if(st('no_commission')==='yes')parts.push('No commission');
     if(ch.heating&&ch.heating.label&&ch.heating.state!=='unknown')parts.push(ch.heating.label);
     if(l.size_sqm!=null)parts.push(l.size_sqm+'sqm');
@@ -207,6 +207,31 @@ function memberRows(l){
   if(!g)return [l];
   return (g.primary_id===l.id?(memberListings.get(l.id)||[l]):[l]) ;
 }
+// P5: member-level movement helpers — a recent increase never masks an older
+// valid reduction; authoritative prop_movement (from the backend, likely
+// groups only) keeps reduction/increase/latest SEPARATE per property.
+function memberReduction(l){
+  const pm=(l.prop_movement||{}).reduction;
+  if(pm)return pm;
+  if(l.movement&&l.movement.reduced)return l.movement;
+  for(const m of memberRows(l)){const mv=m.movement||{};if(mv.reduced)return mv;}
+  return null;
+}
+function memberIncrease(l){
+  const pm=(l.prop_movement||{}).increase;
+  if(pm)return pm;
+  if(l.movement&&l.movement.increased)return l.movement;
+  for(const m of memberRows(l)){const mv=m.movement||{};if(mv.increased)return mv;}
+  return null;
+}
+function latestChange(l){
+  const pm=(l.prop_movement||{}).latest;
+  if(pm)return pm;
+  const d=(l.movement||{}).direction;
+  if(d==='down'||d==='up')return l.movement;
+  for(const m of memberRows(l)){const mv=m.movement||{};if(mv.direction==='down'||mv.direction==='up')return mv;}
+  return null;
+}
 function rowMatches(l,filter,rev){
   const label=l.status_label||'';
   switch(filter){
@@ -214,9 +239,9 @@ function rowMatches(l,filter,rev){
     case'legacy':return !l.url;
     case'newmarket':return label==='NEW ON MARKET';
     case'newdisc':return label==='NEWLY DISCOVERED';
-    case'updated':return label==='UPDATED'||((l.movement||{}).direction==='down')||((l.movement||{}).direction==='up');
-    case'reduced':return !!(l.movement&&l.movement.reduced);
-    case'increased':return !!(l.movement&&l.movement.increased);
+    case'updated':return label==='UPDATED'||memberRows(l).some(m=>(m.movement||{}).direction==='down'||(m.movement||{}).direction==='up');
+    case'reduced':return !!memberReduction(l);
+    case'increased':return !!memberIncrease(l);
     case'grouped':return !!(l.group&&l.group.n_ads>1);
     case'removed':return !!(l.status&&(l.status+'').indexOf('removed')>-1);
     case'top':return (l.score_v2||l.score||0)>=55;
@@ -275,18 +300,11 @@ function render(){
   const sort=document.getElementById('sort').value;
   const search=(document.getElementById('search').value||'').toLowerCase();
   const list=currentList();
-  // property-level movement: the most recent/largest movement across the group's ads
-  const propMovement=l=>{
-    let best=null;
-    for(const m of memberRows(l)){const mv=m.movement||{};
-      if(mv.direction==='down'||mv.direction==='up'){
-        if(!best||(mv.previous_date||'')>(best.previous_date||''))best=mv;}}
-    return best||l.movement||{};
-  };
-  // REDUCTIONS ONLY: an increase is never ranked as a reduction; no offset tricks.
-  const dropPct=l=>{const mv=propMovement(l);return (mv&&mv.reduced&&mv.pct_change!=null)?Math.abs(mv.pct_change):-1;};
-  const dropAbs=l=>{const mv=propMovement(l);return (mv&&mv.reduced&&mv.abs_change!=null)?Math.abs(mv.abs_change):-1;};
-  const changeDate=l=>((propMovement(l)||{}).previous_date||'2000-01-01');
+  // REDUCTIONS ONLY: sorting keys come from the member-level helpers above —
+  // reductions sort by applicable reductions, increases never masquerade.
+  const dropPct=l=>{const mv=memberReduction(l);return (mv&&mv.pct_change!=null)?Math.abs(mv.pct_change):-1;};
+  const dropAbs=l=>{const mv=memberReduction(l);return (mv&&mv.abs_change!=null)?Math.abs(mv.abs_change):-1;};
+  const changeDate=l=>{const mv=latestChange(l);return (mv&&(mv.changed_at||mv.previous_date))||'2000-01-01';};
   const dateOf=l=>(l.dates&&(l.dates.published||l.dates.first_seen))||l.first_seen||'';
   list.sort((a,b)=>{
     switch(sort){
@@ -345,6 +363,10 @@ function cardHtml(l,rev){
   else if(rv.state==='reviewed')badges+='<span class="card-badge badge-review">✓ REVIEWED</span>';
   if(isPrimaryGroup){
     badges+='<span class="card-badge badge-review">⧉ '+g.n_ads+' ADS</span>';
+    // P6: make the ranking price visible — sorting uses the LOWEST active
+    // asking price, which can be lower than this (primary) ad's price.
+    if(l.price_effective!=null&&l.price_eur!=null&&l.price_effective<l.price_eur)
+      badges+='<span class="card-badge badge-updated">⤓ RANKS AT €'+l.price_effective.toLocaleString('en-US')+' · lowest active ask of '+g.n_ads+' ads</span>';
     // explain when a GROUP MEMBER (not the primary ad) carries the signal
     const members=memberListings.get(l.id)||[];
     if(members.some(m=>m.id!==l.id&&m.movement&&m.movement.reduced))
@@ -369,7 +391,7 @@ function cardHtml(l,rev){
   let tags='';
   if((ch.elevator||{}).state==='yes')tags+='<span class="tag yes">Elevator</span>';
   else if((ch.elevator||{}).state==='no')tags+='<span class="tag no">No elevator</span>';
-  if((ch.heating_gas||{}).state==='yes')tags+='<span class="tag yes">Gas</span>';
+  if((ch.heating||{}).state==='autonomous_gas')tags+='<span class="tag yes">Gas</span>';
   if((ch.heating||{}).label&&ch.heating.state!=='unknown')tags+='<span class="tag mut">'+esc(ch.heating.label)+'</span>';
   if((ch.parking||{}).state==='yes')tags+='<span class="tag yes">Parking</span>';
   else if((ch.parking||{}).state==='no')tags+='<span class="tag no">No parking</span>';
