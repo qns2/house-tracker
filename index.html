@@ -51,7 +51,7 @@ header h1{font-size:19px;margin:0 8px 0 0;font-weight:600}
 .cons .pro{color:#9ff0c5}.cons .con{color:#ffb0a6}
 .card-tags{display:flex;flex-wrap:wrap;gap:5px}
 .tag{font-size:11px;border-radius:6px;padding:2.5px 8px;background:#232347;color:#aab2d5}
-.tag.yes{color:#9ff0c5}.tag.no{color:#c9a0ff}
+.tag.yes{color:#9ff0c5}.tag.no{color:#c9a0ff}.tag.mid{color:#ffd58e}
 .grp-chip{font-size:11.5px;color:var(--warn);background:#2b2536;border-radius:6px;padding:3px 8px;border:none}
 .grp-chip.pos{color:#9aa0b5}
 .val-chip{font-size:11.5px;color:var(--muted)}
@@ -117,9 +117,9 @@ header h1{font-size:19px;margin:0 8px 0 0;font-weight:600}
   <label for="sort" style="color:var(--muted);font-size:12.5px">Sort</label>
   <select id="sort" onchange="render()">
     <option value="score">Best score</option>
-    <option value="drop_pct">Biggest % price change</option>
-    <option value="drop_abs">Biggest € price change</option>
-    <option value="change_recent">Most recent change</option>
+    <option value="drop_pct">Biggest price reduction (%)</option>
+    <option value="drop_abs">Biggest price reduction (€)</option>
+    <option value="change_recent">Most recent change (any direction)</option>
     <option value="price_asc">Price low→high</option>
     <option value="price_desc">Price high→low</option>
     <option value="pps_asc">€/sqm low→high</option>
@@ -139,7 +139,8 @@ header h1{font-size:19px;margin:0 8px 0 0;font-weight:600}
 let allListings=[],meta={},groupIndex={},searchStrings=new Map();
 const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function pps(l){return (l.price_eur&&l.size_sqm>0)?l.price_eur/l.size_sqm:1e9}
+function pps(l){const p=l.price_effective||l.price_eur;return (p&&l.size_sqm>0)?p/l.size_sqm:1e9}
+const effPrice=l=>l.price_effective||l.price_eur||1e9;
 function money(n){return n?Number(n).toLocaleString('en-US')+' €':''}
 function fmtShort(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7):'—'}
 function reviews(){try{return JSON.parse(localStorage.getItem(REV_KEY))||{}}catch(e){return{}}}
@@ -178,14 +179,24 @@ function buildSearchStrings(){
 
 function buildGroupIndex(){
   // likely multi-ad groups collapse to one primary card; 'possible' stays individual
-  groupIndex={};
+  groupIndex={};memberListings=new Map();
+  const byId=new Map(allListings.map(l=>[l.id,l]));
   for(const l of allListings){
     const g=l.group;
-    if(g&&g.property_id&&g.level==='likely'&&g.n_ads>1&&Array.isArray(g.ads))groupIndex[g.property_id]=g;
+    if(g&&g.property_id&&g.level==='likely'&&g.n_ads>1&&Array.isArray(g.ads)){
+      groupIndex[g.property_id]=g;
+      const members=(g.ads||[]).map(a=>byId.get(a.ad_id)).filter(Boolean);
+      memberListings.set(g.primary_id,members.length?members:[l]);
+    }
   }
 }
-
-function matchesFilter(l,filter,rev){
+// all rows representing the same physical property as l (l itself when ungrouped)
+function memberRows(l){
+  const g=l.group&&groupIndex[l.group.property_id];
+  if(!g)return [l];
+  return (g.primary_id===l.id?(memberListings.get(l.id)||[l]):[l]) ;
+}
+function rowMatches(l,filter,rev){
   const label=l.status_label||'';
   switch(filter){
     case'verified':case'all':return true;
@@ -206,6 +217,14 @@ function matchesFilter(l,filter,rev){
   }
   return true;
 }
+// Property-level filters evaluate EVERY member advertisement of a likely group,
+// so a secondary ad's reduction/shortlist/update/profile never hides the property.
+const MEMBER_FILTERS=['newmarket','newdisc','updated','reduced','increased',
+                      'shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
+function matchesFilter(l,filter,rev){
+  if(MEMBER_FILTERS.indexOf(filter)>=0)return memberRows(l).some(m=>rowMatches(m,filter,rev));
+  return rowMatches(l,filter,rev);
+}
 
 function propertyView(filter){
   // for the default views, likely duplicate groups collapse to their primary ad
@@ -225,7 +244,8 @@ function currentList(){
   const filter=document.getElementById('filter').value;
   const rev=reviews();
   const search=(document.getElementById('search').value||'').toLowerCase();
-  const notDismissed=l=>!(rev[l.id]&&rev[l.id].state==='dismissed'&&filter!=='dismissed');
+  // dismissed primary must not hide other member ads of the same property
+  const notDismissed=l=>filter==='dismissed'||memberRows(l).some(m=>!(rev[m.id]&&rev[m.id].state==='dismissed'));
   // grouped view stays grouped while searching: an ad that matches inside a
   // likely duplicate group promotes its primary card instead of adding the member
   const base=propertyView(filter).filter(l=>matchesFilter(l,filter,rev)&&notDismissed(l));
@@ -244,16 +264,26 @@ function render(){
   const sort=document.getElementById('sort').value;
   const search=(document.getElementById('search').value||'').toLowerCase();
   const list=currentList();
-  const mvAbs=l=>(l.movement&&l.movement.abs_change!=null)?Math.abs(l.movement.abs_change):0;
-  const mvPct=l=>(l.movement&&l.movement.pct_change!=null)?Math.abs(l.movement.pct_change):-1;
+  // property-level movement: the most recent/largest movement across the group's ads
+  const propMovement=l=>{
+    let best=null;
+    for(const m of memberRows(l)){const mv=m.movement||{};
+      if(mv.direction==='down'||mv.direction==='up'){
+        if(!best||(mv.previous_date||'')>(best.previous_date||''))best=mv;}}
+    return best||l.movement||{};
+  };
+  // REDUCTIONS ONLY: an increase is never ranked as a reduction; no offset tricks.
+  const dropPct=l=>{const mv=propMovement(l);return (mv&&mv.reduced&&mv.pct_change!=null)?Math.abs(mv.pct_change):-1;};
+  const dropAbs=l=>{const mv=propMovement(l);return (mv&&mv.reduced&&mv.abs_change!=null)?Math.abs(mv.abs_change):-1;};
+  const changeDate=l=>((propMovement(l)||{}).previous_date||'2000-01-01');
   const dateOf=l=>(l.dates&&(l.dates.published||l.dates.first_seen))||l.first_seen||'';
   list.sort((a,b)=>{
     switch(sort){
-      case'drop_pct':return mvPct(b)-(b.movement&&b.movement.reduced?0.5:0)-mvPct(a)+(a.movement&&a.movement.reduced?0.5:0);
-      case'drop_abs':return mvAbs(b)-(b.movement&&b.movement.reduced?0.5:0)-mvAbs(a)+(a.movement&&a.movement.reduced?0.5:0);
-      case'change_recent':return new Date(((b.movement||{}).previous_date||'2000-01-01'))-new Date(((a.movement||{}).previous_date||'2000-01-01'));
-      case'price_asc':return(a.price_eur||1e9)-(b.price_eur||1e9);
-      case'price_desc':return(b.price_eur||0)-(a.price_eur||0);
+      case'drop_pct':return dropPct(b)-dropPct(a);
+      case'drop_abs':return dropAbs(b)-dropAbs(a);
+      case'change_recent':return new Date(changeDate(b))-new Date(changeDate(a));
+      case'price_asc':return effPrice(a)-effPrice(b);
+      case'price_desc':return (b.price_effective||b.price_eur||0)-(a.price_effective||a.price_eur||0);
       case'pps_asc':return pps(a)-pps(b);
       case'pps_desc':return pps(b)-pps(a);
       case'size_desc':return(b.size_sqm||0)-(a.size_sqm||0);
@@ -264,11 +294,11 @@ function render(){
   const uniqueN=list.filter(l=>l.group&&groupIndex[l.group.property_id]&&l.id===groupIndex[l.group.property_id].primary_id).length;
   const shortN=Object.keys(reviews()).filter(k=>reviews()[k].state==='shortlist').length;
   document.getElementById('summary').textContent=
-    list.length+' shown'+(uniqueN?' ('+uniqueN+' unique properties)':'')+' · '+
-    shortN+' shortlisted · '+(meta.groups||0)+' dup groups';
+    list.length+' shown'+(uniqueN?' ('+uniqueN+' primary cards of grouped properties)':'')+' · '+
+    shortN+' shortlisted · '+(meta.groups_likely||'?')+' confirmed dup groups ('+(meta.groups||0)+' total)';
   document.getElementById('freshness').innerHTML=
     'Last data collection: <b>'+(meta.last_scan_at?fmtShort(meta.last_scan_at)+' '+(meta.last_scan_at||'').slice(11,16):'unknown')+
-    '</b> · runs daily 11:00 · page reloaded <b>'+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+'</b>';
+    '</b> · detail refresh ~09:00 + vision harvest 11:00 (Athens local) · page reloaded <b>'+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+'</b>';
 
   const container=document.getElementById('listings');
   if(list.length===0){container.innerHTML='<div class="empty">No listings match this filter.</div>';return}
@@ -300,7 +330,17 @@ function cardHtml(l,rev){
   if(rvChanged)badges+='<span class="card-badge badge-updated">CHANGED</span>';
   if(rv.state==='shortlist')badges+='<span class="card-badge badge-review">★ SHORTLIST</span>';
   else if(rv.state==='reviewed')badges+='<span class="card-badge badge-review">✓ REVIEWED</span>';
-  if(isPrimaryGroup)badges+='<span class="card-badge badge-review">⧉ '+g.n_ads+' ADS</span>';
+  if(isPrimaryGroup){
+    badges+='<span class="card-badge badge-review">⧉ '+g.n_ads+' ADS</span>';
+    // explain when a GROUP MEMBER (not the primary ad) carries the signal
+    const members=memberListings.get(l.id)||[];
+    if(members.some(m=>m.id!==l.id&&m.movement&&m.movement.reduced))
+      badges+='<span class="card-badge badge-updated">↓ PRICE DROP IN MEMBER AD</span>';
+    if(members.some(m=>m.id!==l.id&&rev[m.id]&&rev[m.id].state==='shortlist'))
+      badges+='<span class="card-badge badge-review">★ MEMBER SHORTLISTED</span>';
+    if(members.some(m=>m.id!==l.id&&(m.search_ids||[]).some(s=>!(l.search_ids||[]).includes(s))))
+      badges+='<span class="card-badge badge-review">⧉ ALSO IN OTHER SEARCH</span>';
+  }
 
   let mvHtml='';
   if(mv.direction==='down'&&mv.pct_change!=null)
@@ -317,7 +357,17 @@ function cardHtml(l,rev){
   if((ch.elevator||{}).state==='yes')tags+='<span class="tag yes">Elevator</span>';
   else if((ch.elevator||{}).state==='no')tags+='<span class="tag no">No elevator</span>';
   if((ch.heating_gas||{}).state==='yes')tags+='<span class="tag yes">Gas</span>';
-  if(l.renovation)tags+='<span class="tag '+((ch.renovation||{}).state==='needs_renovation'?'no':'yes')+'">'+esc(l.renovation)+'</span>';
+  if((ch.heating||{}).label&&ch.heating.state!=='unknown')tags+='<span class="tag mut">'+esc(ch.heating.label)+'</span>';
+  if((ch.parking||{}).state==='yes')tags+='<span class="tag yes">Parking</span>';
+  else if((ch.parking||{}).state==='no')tags+='<span class="tag no">No parking</span>';
+  if((ch.storage||{}).state==='yes')tags+='<span class="tag yes">Storage</span>';
+  if((ch.furnished||{}).state==='yes')tags+='<span class="tag yes">Furnished</span>';
+  else if((ch.furnished||{}).state==='no')tags+='<span class="tag no">Unfurnished</span>';
+  if(l.renovation){
+    const rs=(ch.renovation||{}).state;
+    const rc=(rs==='needs_renovation'||rs==='not_claimed')?'no':(rs==='partially_renovated'?'mid':(rs==='conflict'||rs==='unknown'?'mut':'yes'));
+    tags+='<span class="tag '+rc+'">'+esc(l.renovation)+'</span>';
+  }
   if((ch.no_commission||{}).state==='yes')tags+='<span class="tag yes">No commission</span>';
   const ecParsed=(ch.energy_class||{}).value;
   const ecState=(ch.energy_class||{}).state;
@@ -379,7 +429,7 @@ function setReview(id,state){
   const l=(allListings.find(x=>x.id===id))||{};
   rev[id]={state:(cur.state===state?'none':state),note:cur.note||'',at:new Date().toISOString(),snap:{price:l.price_eur,label:l.status_label||''}};
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
-  updateCardInPlace(id);updateSummaryLine();
+  refreshAfterReview(id);
 }
 function addNote(id){
   const rev=reviews();const cur=rev[id]||{};
@@ -388,7 +438,15 @@ function addNote(id){
   const l=(allListings.find(x=>x.id===id))||{};
   rev[id]={state:cur.state||'none',note:n,at:new Date().toISOString(),snap:cur.snap||{price:l.price_eur}};
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
-  updateCardInPlace(id);updateSummaryLine();
+  refreshAfterReview(id);
+}
+// A review-state change alters filter MEMBERSHIP (Shortlist/Reviewed/Dismissed
+// views). Re-render the visible list so cards and summary counts always agree,
+// then restore keyboard focus to the acting card.
+function refreshAfterReview(id){
+  render();
+  const node=document.getElementById('listings').querySelector('[data-id="'+CSS.escape(id)+'"] .card-actions');
+  if(node){const btn=node.querySelector('.mini-btn.on')||node.querySelector('.mini-btn');if(btn)btn.focus();}
 }
 function updateSummaryLine(){
   const rev=reviews();
@@ -429,8 +487,9 @@ function updateCardInPlace(id){
   }else if(noteEl)noteEl.remove();
 }
 
-let lastFocused=null;
+let lastFocused=null,modalToken=0;
 function openModal(id){
+  const token=++modalToken;            // generation token: only the newest request may render
   lastFocused=document.activeElement;
   const l=(allListings.find(x=>x.id===id));if(!l)return;
   document.getElementById('modal').classList.add('open');
@@ -440,10 +499,11 @@ function openModal(id){
   document.getElementById('modalPanel').querySelector('.close').focus();
   fetch('api/details/'+encodeURIComponent(id)+'.json')
     .then(r=>{if(!r.ok)throw new Error(String(r.status));return r.json()})
-    .then(d=>renderDetail(d))
-    .catch(()=>renderDetail(l)); // offline fallback: whatever the summary carries
+    .then(d=>{if(token===modalToken)renderDetail(d)})       // stale responses are dropped
+    .catch(()=>{if(token===modalToken)renderDetail(l)});    // controlled fallback to summary data
 }
 function openGroup(pid){
+  modalToken++;                        // invalidate any in-flight detail request
   lastFocused=document.activeElement;
   const g=groupIndex[pid];if(!g)return;
   const rowsHtml=(g.ads||[]).map(a=>{
@@ -478,6 +538,8 @@ function renderDetail(l){
     const c=ch[kp[0]]||{state:'unknown'};
     charRows+='<tr><td>'+kp[1]+'</td>'+tri(c.state)+'<td class="ev">'+esc(c.evidence||'')+'</td></tr>';
   });
+  if(ch.heating&&ch.heating.state&&ch.heating.state!=='unknown')
+    charRows+='<tr><td>Heating type</td><td class="v">'+esc(ch.heating.label||ch.heating.state)+'</td><td class="ev">'+esc(ch.heating.evidence||'')+'</td></tr>';
   // ENUM characteristic (renovation) uses its own label — never the boolean formatter
   const ren=ch.renovation||{state:'unknown',label:'Unknown condition'};
   const renCls=(ren.state==='renovated'||ren.state==='new_build')?'var(--good)':(ren.state==='needs_renovation'?'var(--bad)':'var(--warn)');
@@ -511,10 +573,15 @@ function renderDetail(l){
   const valTxt=(l.valuation&&l.valuation.diff_pct_vs_median!=null)
     ?(' · comparable median '+Math.round(l.valuation.median_pps)+' €/sqm ('+(l.valuation.diff_pct_vs_median>0?'+':'')+l.valuation.diff_pct_vs_median+'% vs median · '+l.valuation.n_comparables+' comparables) — asking prices, not completed transactions.')
     :(' · no reliable comparable median yet.');
+  const gpTxt=(l.group_pricing&&l.group_pricing.max_active_price>l.group_pricing.min_active_price)
+    ?('<div class="ev">Same property advertised at '+money(l.group_pricing.min_active_price)+'–'+money(l.group_pricing.max_active_price)+
+      ' across '+l.group_pricing.n_ads+' ads — ranking uses the lowest active asking price ('+money(l.price_effective)+'). Verify which ad you negotiate on.</div>')
+    :'';
   document.getElementById('modalPanel').innerHTML=
     '<button class="close" onclick="closeModal()" aria-label="Close details">✕</button>'+
     '<h2>'+money(l.price_eur)+' '+(mv.direction==='down'?'<span class="mv-down">↓ '+Math.abs(mv.abs_change||0).toLocaleString('en-US')+' € ('+(mv.pct_change<0?'−':'+')+Math.abs(mv.pct_change||0).toFixed(1)+'%)</span>':(mv.direction==='up'?'<span class="mv-up">↑ +'+(mv.pct_change||0).toFixed(1)+'%</span>':''))+'</h2>'+
     '<div class="card-area">'+esc(l.area||'')+(loc.mismatch?' ('+esc(loc.actual_city)+')':'')+'</div>'+
+    gpTxt+
     '<h3>Overview</h3><table>'+
     '<tr><td>Size</td><td class="v">'+(l.size_sqm>0?esc(String(l.size_sqm))+' sqm':'—')+'</td><td class="ev">'+ppsTxt+'</td></tr>'+
     '<tr><td>Bedrooms / floor</td><td class="v">'+(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—')+'</td><td class="ev"></td></tr>'+
@@ -537,12 +604,24 @@ function renderDetail(l){
   if(c)c.focus();
 }
 function closeModal(){
+  modalToken++;                        // no stale response may update a closed modal
   document.getElementById('modal').classList.remove('open');
   document.getElementById('modalPanel').innerHTML='';
   if(lastFocused&&lastFocused.focus)lastFocused.focus();
   lastFocused=null;
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeModal();
+  // focus trap: keep Tab inside the open modal panel
+  if(e.key==='Tab'&&document.getElementById('modal').classList.contains('open')){
+    const panel=document.getElementById('modalPanel');
+    const f=panel.querySelectorAll('button,[href],input,select,textarea');
+    if(!f.length)return;
+    const first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  }
+});
 document.getElementById('refreshBtn').addEventListener('click',loadAll);
 document.getElementById('exportBtn').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify({format:'house-tracker-reviews-v1',exported:new Date().toISOString(),reviews:reviews()},null,2)],{type:'application/json'});
@@ -557,15 +636,40 @@ document.getElementById('importFile').addEventListener('change',e=>{
     try{
       const parsed=JSON.parse(rd.result);
       const incoming=(parsed&&parsed.reviews)?parsed.reviews:parsed;
-      if(typeof incoming!=='object'||Array.isArray(incoming))throw new Error('unexpected file format');
+      if(typeof incoming!=='object'||incoming===null||Array.isArray(incoming))throw new Error('unexpected file format');
+      // VALIDATE BEFORE MERGING: no partial writes, no prototype pollution,
+      // listing-id keys only, whitelisted states, bounded notes.
+      const VALID_STATES=['shortlist','reviewed','dismissed','none'];
+      const ID_RE=/^[A-Za-z0-9_.\-]{3,64}$/;
+      const clean={};let imported=0,skipped=0;
+      for(const key of Object.keys(incoming)){
+        if(key==='__proto__'||key==='constructor'||key==='prototype'||!ID_RE.test(key)){skipped++;continue}
+        const ent=incoming[key];
+        if(!ent||typeof ent!=='object'||Array.isArray(ent)){skipped++;continue}
+        const state=VALID_STATES.indexOf(ent.state)>=0?ent.state:'none';
+        const note=(typeof ent.note==='string')?ent.note.slice(0,500):'';
+        if(state==='none'&&!note){skipped++;continue}
+        clean[key]={state};
+        if(note)clean[key].note=note;
+        if(typeof ent.at==='string'&&/^\d{4}-\d{2}-\d{2}/.test(ent.at))clean[key].at=ent.at;
+        if(ent.snap&&Number.isFinite(+ent.snap.price))clean[key].snap={price:+ent.snap.price};
+        imported++;
+      }
       const rev=reviews();
-      Object.assign(rev,incoming);
+      let notesKept=0;
+      for(const k of Object.keys(clean)){
+        const cur=rev[k]||{};
+        if(!clean[k].note&&cur.note){clean[k].note=cur.note;notesKept++;} // conflict rule: import wins on state, existing notes survive
+        rev[k]=clean[k];
+      }
       localStorage.setItem(REV_KEY,JSON.stringify(rev));
       render();
-      alert('Imported review decisions for '+Object.keys(incoming).length+' listings.');
-    }catch(err){alert('Import failed: '+err.message)}
+      alert('Imported '+imported+' review decision(s)'+(notesKept?' ('+notesKept+' existing notes kept)':'')+
+            (skipped?' · skipped '+skipped+' invalid entr(ies)':'')+'.');
+    }catch(err){alert('Import failed: '+err.message+' — no changes were made.')}
   };
   rd.readAsText(f);
+  e.target.value='';   // allow re-importing the same file
 });
 // persist UI state (filter/sort/search) across reloads
 (function(){

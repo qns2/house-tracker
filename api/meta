@@ -1,1 +1,1 @@
-{"dedup_built": "2026-11-22T11:30:57.605478", "groups": 99, "last_scan_at": "2026-11-22T09:00:01.400850", "scan_note": "collection runs daily at 11:00 via the scheduled job; the UI Reload only re-reads local data"}
+{"dedup_built": "2026-11-22T18:15:16.243976", "groups": 99, "groups_likely": 32, "last_scan_at": "2026-11-22T15:00:01.135059", "scan_note": "collection runs daily at 11:00 via the scheduled job; the UI Reload only re-reads local data"}
