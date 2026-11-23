@@ -287,6 +287,7 @@ button{font:inherit;color:inherit}
   <span class="top-spacer"></span>
   <div class="top-actions">
     <button class="shortcut-chip" id="shortlistBtn" aria-label="Show shortlisted properties">★ Shortlist <span class="n" id="shortCount">0</span></button>
+    <button class="shortcut-chip" id="copyShortlistBtn" style="display:none" onclick="copyShortlist()" aria-label="Copy all shortlisted listings to clipboard">⧉ Copy list</button>
     <button class="iconbtn" id="menuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="More tools and data info">⋯</button>
   </div>
   <div class="menu-pop" id="menuPop" role="menu" aria-label="Tools and data information">
@@ -391,7 +392,7 @@ async function loadAll(){
       fetch('api/meta').then(r=>r.json()).catch(()=>({})),
       fetch('api/cross_portal.json').then(r=>r.json()).catch(()=>({refs:{}}))
     ]);
-    allListings=lRes;meta=mRes||{};XREF=xRes||{refs:{}};
+    allListings=lRes;meta=mRes||{};XREF=xRes||{refs:{}};window.__loadedAt=new Date();
     buildSearchStrings();buildGroupIndex();
     const up=meta.last_scan_at?('Last data: <b>'+fmtDataFresh(meta.last_scan_at)+'</b> · daily refresh ~11:00 (Athens)'):'';
     document.getElementById('freshness').innerHTML=up;
@@ -438,7 +439,7 @@ function buildGroupIndex(){
   const byId=new Map(allListings.map(l=>[l.id,l]));
   for(const l of allListings){
     const g=l.group;
-    if(g&&g.property_id&&g.level==='likely'&&g.n_ads>1&&Array.isArray(g.ads)){
+    if(g&&g.property_id&&(g.level==='likely'||g.level==='confirmed')&&g.n_ads>1&&Array.isArray(g.ads)){
       groupIndex[g.property_id]=g;
       const members=(g.ads||[]).map(a=>byId.get(a.ad_id)).filter(Boolean);
       memberListings.set(g.primary_id,members.length?members:[l]);
@@ -570,7 +571,8 @@ function sortList(list){
 }
 
 /* ---------------- render ---------------- */
-function render(){
+function render(onDone){
+  const gen=(window.__renderGen=(window.__renderGen||0)+1);  // REV-005 render generation
   const t0=performance.now();
   const rev=reviews();
   const list=currentList();
@@ -589,6 +591,7 @@ function render(){
   }
   const shortN=Object.keys(rev).filter(k=>rev[k].state==='shortlist').length;
   document.getElementById('shortCount').textContent=shortN;
+  document.getElementById('copyShortlistBtn').style.display=shortN>0?'':'none';
   document.querySelectorAll('.qbtn').forEach(b=>{
     const q=b.dataset.quick;
     b.setAttribute('aria-pressed',String(ui.quick===q));
@@ -611,14 +614,21 @@ function render(){
     +(chips.length?'<button class="reset-link" onclick="clearAllFilters()">Reset all</button>':'');
   // result bar
   const uniqueN=list.filter(l=>l.group&&groupIndex[l.group.property_id]&&l.id===groupIndex[l.group.property_id].primary_id).length;
+  const glv=meta.groups_confirmed||0, llv=meta.groups_likely||0, plv=meta.groups_possible;
   document.getElementById('resultbar').innerHTML=
     '<span><b class="num">'+list.length+'</b> propert'+(list.length===1?'y':'ies')+' in view'+(uniqueN&&uniqueN!==list.length?' <span>('+uniqueN+' grouped cards)</span>':'')+'</span>'+
-    '<span>· '+(meta.groups_likely||'?')+' confirmed · '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible duplicate groups</span>'+
-    (ui.profile==='all'?'<span class="cmp-note">scores are per-strategy — A/B/C use different weights; compare within one profile</span>':'');
+    '<span>· '+(glv?glv+' confirmed':'')+(glv&&llv?' · ':'')+(llv?llv+' likely':'')+' · '+(plv!=null?plv:'?')+' possible duplicate groups</span>'+
+    (ui.profile==='all'?'<span class="cmp-note">scores are per-strategy — A/B/C use different weights; compare within one profile</span>':'')+
+    '<div class="cmp-note" id="lineage">Data loaded '+
+      (window.__loadedAt?String(window.__loadedAt).slice(16,21):'?')+
+      ' (page fetch — not a collection run) · search listings last seen '+
+      esc(String(meta.last_scan_at||'').slice(0,10))+' · details refreshed '+
+      esc(String(allListings.reduce((a,l)=>((l.freshness&&l.freshness.last_checked&&l.freshness.last_checked>a)?l.freshness.last_checked:a),'')||'').slice(0,10))+
+      ' · enrichment/scores computed '+esc(String(meta.enriched_at||'').slice(11,16))+'</div>';
   const container=document.getElementById('listings');
   let html;
   if(list.length===0){
-    html='<div class="empty"><b>No properties match</b>Try removing a filter or clearing the search. Confirmed duplicate groups collapse to one card — open “All individual ads” to see every advertisement.</div>';
+    html='<div class="empty"><b>No properties match</b>Try removing a filter or clearing the search. Likely duplicate groups collapse to one card — open “All individual ads” to see every advertisement.</div>';
   }else{
     html=list.map(l=>cardHtml(l,rev)).join('');
   }
@@ -641,8 +651,39 @@ function render(){
         outside.map(l=>cardHtml(l,rev)).join('')+'</details>';
     }
   }
+  // Progressive paint: the full filter/sort/consolidation pass runs on the whole
+  // dataset first; only the DOM insertion chunks when the view is large (measured
+  // 235ms for 547 cards on this box). Search/sort/keyboard behavior unchanged —
+  // chunking is purely visual and the chunks append in DOM order.
+  const FIRST_PAINT=90, PAINT_BATCH=140;
+  if(html.length>0 && ui.profile==='all' && list.length>FIRST_PAINT+PAINT_BATCH){
+    // split the main card string on top-level <article boundaries (any class
+    // variant: card / card removed / ...) and re-batch without tokenizing markup
+    const tokens=html.split('<article ');
+    const mainCh=[];
+    let buf=tokens[0];
+    for(let i=1;i<tokens.length;i++){
+      buf+='<article '+tokens[i];
+      if(i%PAINT_BATCH===0){mainCh.push(buf);buf='';}
+    }
+    if(buf)mainCh.push(buf);
+    const chunks=[mainCh[0]||''].concat(mainCh.slice(1));
+    container.innerHTML=chunks[0];
+    let ci=1;
+    window.__renderMs=Math.round(performance.now()-t0);
+    const fill=()=>{
+      if(gen!==window.__renderGen)return;   // a newer render superseded ours
+      if(ci<chunks.length){
+        container.insertAdjacentHTML('beforeend',chunks[ci]);ci++;
+        setTimeout(fill,0);
+      }else if(typeof onDone==='function'){onDone();}
+    };
+    if(chunks.length>1)setTimeout(fill,0);else if(typeof onDone==='function')onDone();
+    return;
+  }
   container.innerHTML=html;
   window.__renderMs=Math.round(performance.now()-t0);
+  if(typeof onDone==='function')onDone();
 }
 const PROFILE_LABELS={A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed'};
 const PROFILE_SHORT={A_investment_1br:'Profile A',B_residence_2br:'Profile B',C_piraeus_univ_1br:'Profile C'};
@@ -720,7 +761,9 @@ function cardHtml(l,rev){
   if(isPrimaryGroup){
     const pr=g.prices_all||[];
     const gp=l.group_pricing||{};
-    grp='<div class="grp-box"><b>'+g.n_ads+' advertisements (grouped)</b>'
+    grp='<div class="grp-box"><b>'+g.n_ads+' advertisements — '+
+      (g.level==='confirmed'?'confirmed duplicate group (strong-evidence standard)':'likely duplicate group')+
+      (g.similarity_pct!=null?' <span class="u">(similarity '+g.similarity_pct+'%)</span>':'')+'</b>'
       +(l.price_effective!=null&&l.price_effective!==l.price_eur?'<span class="num">ranks at <b>'+money(l.price_effective)+'</b> (lowest active ask)</span>':'')
       +(pr.length>1?'<span class="num">'+money(Math.min.apply(null,pr))+'–'+money(Math.max.apply(null,pr))+' range</span>':'')
       +(gp.stale_excluded?'<span class="note">'+gp.stale_excluded+(gp.stale_excluded===1?' stale ad':' stale ads')+' excluded from the effective price</span>':'')
@@ -800,6 +843,7 @@ function cardHtml(l,rev){
     (rv.note?'<div class="card-note">Note: '+esc(rv.note)+'</div>':'')+
     '<div class="card-actions">'+
       '<button class="act star'+(rv.state==='shortlist'?' on':'')+'" aria-pressed="'+(rv.state==='shortlist')+'" onclick="setReview(\''+esc(l.id)+'\',\'shortlist\')" title="Shortlist'+actNote+'" aria-label="Shortlist this listing'+actNote+'">★<span>Shortlist</span></button>'+
+      '<button class="act" onclick="copyListing(\''+esc(l.id)+'\')" title="Copy this listing\'s ID (the tracker house id — paste it into the ID search)" aria-label="Copy listing ID">⧉<span>Copy ID</span></button>'+
       '<button class="act" aria-pressed="'+(rv.state==='reviewed')+'" onclick="setReview(\''+esc(l.id)+'\',\'reviewed\')" title="Mark reviewed'+actNote+'" aria-label="Mark reviewed'+actNote+'">✓<span>Reviewed</span></button>'+
       '<button class="act" aria-pressed="'+(rv.state==='dismissed')+'" onclick="setReview(\''+esc(l.id)+'\',\'dismissed\')" title="Dismiss (reversible — appears under More filters · Dismissed)'+actNote+'" aria-label="Dismiss this listing'+actNote+'">✗<span>Dismiss</span></button>'+
       '<button class="act" onclick="addNote(\''+esc(l.id)+'\')" title="Add or edit a personal note" aria-label="Add a personal note"><span>Note</span></button>'+
@@ -809,6 +853,49 @@ function cardHtml(l,rev){
       ?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">View source advertisement ↗</a>'
       :'<span class="nosrc">Snapshot card — no source link</span>')+'</div>'+
     '</div></article>';
+}
+
+/* ---------------- copy to clipboard ---------------- */
+function copyText(t){
+  const done=()=>toast('⧉ Copied');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done,function(){fallbackCopy(t);done();});
+  }else{fallbackCopy(t);done();}
+}
+function fallbackCopy(t){
+  const ta=document.createElement('textarea');ta.value=t;
+  ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+}
+function listingText(id){
+  const l=(allListings.find(x=>x.id===id))||{};
+  const eur=v=>(v!=null)?'€'+Number(v).toLocaleString('el-GR'):'—';
+  const bits=[eur(l.price_effective||l.price_eur)];
+  if(l.size_sqm)bits.push(l.size_sqm+' m²');
+  if(l.floor!=null)bits.push('floor '+l.floor);
+  if(l.bedrooms!=null)bits.push(l.bedrooms+' bd');
+  if(l.area||((l.location||{}).actual_city))bits.push(l.area||(l.location||{}).actual_city);
+  let txt=bits.join(' · ');
+  if(l.size_sqm&&((l.price_effective||l.price_eur)))txt+=' — '+Math.round((l.price_effective||l.price_eur)/l.size_sqm).toLocaleString('el-GR')+' €/m²';
+  const score=(l.score_v2!=null)?l.score_v2:(l.score||0);
+  if(l.score_v2!=null)txt+='\nScore '+score+'/100 ('+(PROFILE_SHORT[l.score_v2_profile]||l.score_v2_profile||'—')+')';
+  const pe=(l.eligibility||{})[ui.profile]||{};
+  if(pe.status)txt+='\n'+(PROFILE_SHORT[ui.profile]||ui.profile)+' fit: '+pe.status+(pe.status!=='eligible'&&pe.reasons&&pe.reasons[0]?' — '+pe.reasons[0]:'');
+  const g=l.group&&groupIndex[l.group.property_id]?groupIndex[l.group.property_id]:null;
+  if(g&&g.n_ads>1)txt+='\n'+g.n_ads+' ads ('+g.level+' duplicate group'+(g.similarity_pct!=null?', similarity '+g.similarity_pct+'%':'')+')';
+  if(l.url)txt+='\n'+l.url;
+  txt+='\nID '+l.id;
+  return txt;
+}
+function copyListing(id){copyText(id);}
+function copyShortlist(){
+  const rev=reviews();
+  const items=Object.keys(rev).filter(k=>rev[k].state==='shortlist')
+    .map(function(k){return listingText(k);});
+  if(!items.length){toast('No shortlisted listings');return;}
+  copyText('House tracker — shortlist ('+items.length+')\n\n'+items.join('\n\n———\n\n'));
 }
 
 /* ---------------- review actions ---------------- */
@@ -835,9 +922,10 @@ function addNote(id){
   refreshAfterReview(id);
 }
 function refreshAfterReview(id){
-  render();
-  const node=document.getElementById('listings').querySelector('[data-id="'+CSS.escape(id)+'"] .card-actions');
-  if(node){const btn=node.querySelector('.act[aria-pressed=true]')||node.querySelector('.act');if(btn)btn.focus();}
+  render(()=>{  // REV-012: focus after the LAST paint chunk too
+    const node=document.getElementById('listings').querySelector('[data-id="'+CSS.escape(id)+'"] .card-actions');
+    if(node){const btn=node.querySelector('.act[aria-pressed=true]')||node.querySelector('.act');if(btn)btn.focus();}
+  });
 }
 function toast(msg){
   let t=document.getElementById('toast');
@@ -892,8 +980,8 @@ function openGroup(pid){
     '<div class="sub">'+g.n_ads+' advertisements · one physical property</div></div>'+
     '<button class="mclose" onclick="closeModal()" aria-label="Close group view">✕</button></div>'+
     '<div class="panel-inner">'+
-    '<div class="msec"><h3>Confirmed duplicate group</h3>'+
-    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched with high confidence ('+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+') — all ads below are believed to describe the <b>same physical property</b>. Each advertisement keeps its own price history and source link; nothing is merged. Where asking prices differ, verify on the ad pages — the lowest active ask is used for ranking, not as a claim of negotiating room.</p>'+rowsHtml+'</div></div>';
+    '<div class="msec"><h3>'+(g.level==='confirmed'?'Confirmed duplicate group (strong-evidence standard)':'Likely duplicate group')+'</h3>'+
+    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched on description similarity '+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+' — an algorithmic score, not a probability of sameness'+(g.level==='confirmed'?' (meets the documented strong-evidence standard)':'')+'. All ads below are believed to describe the <b>same physical property</b>. Each advertisement keeps its own price history and source link; nothing is merged. Where asking prices differ, verify on the ad pages — the lowest active ask is used for ranking, not as a claim of negotiating room.</p>'+rowsHtml+'</div></div>';
   document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
 
@@ -1062,8 +1150,8 @@ function renderDetail(l){
   /* all advertisements */
   const gads=(l.group&&l.group.n_ads>1)?(l.group.ads||[]):[];
   const adsHtml=gads.length
-    ?'<div class="msec"><h3>All advertisements <span class="hint">'+(l.group.level==='likely'?'confirmed same property':'unverified possible duplicates')+'</span></h3>'+
-     (l.group.level!=='likely'?'<div style="font-size:12.5px;color:var(--warn);margin:-4px 0 8px">⚠ Possible duplicates are hypotheses — the ads are <b>not</b> confirmed to describe the same property.</div>':'')+
+    ?'<div class="msec"><h3>All advertisements <span class="hint">'+(l.group.level==='confirmed'?'same property (strong evidence)':(l.group.level==='likely'?'very likely same property':'unverified possible duplicates'))+'</span></h3>'+
+     (l.group.level==='possible'?'<div style="font-size:12.5px;color:var(--warn);margin:-4px 0 8px">⚠ Possible duplicates are hypotheses — the ads are <b>not</b> confirmed to describe the same property.</div>':'')+
      gads.map(a=>{
        const m=(allListings.find(x=>x.id===a.ad_id))||{};
        const h=(m.history||[]);
