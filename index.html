@@ -117,6 +117,14 @@ button{font:inherit;color:inherit}
 .grp-box .note{color:var(--muted2);font-size:12px;width:100%}
 .possible-chip{border:1px solid var(--border2);background:var(--surface2);border-radius:10px;padding:8px 12px;font-size:12.5px;color:var(--muted)}
 .xref-chip{border-color:#4f7dd9;background:rgba(79,125,217,.10);color:#b7c9ec}
+.ooc-chip{border-color:#a34d4d;background:rgba(163,77,77,.10);color:#e8b9b9}
+.nv-chip{border-color:#a3822d;background:rgba(163,130,45,.10);color:#e8d5a3}
+.outside-criteria{margin:14px 0 0;border:1px solid var(--border2);border-radius:12px;background:var(--surface2)}
+.outside-criteria>summary{cursor:pointer;padding:12px 14px;font-size:13.5px;color:var(--muted);font-weight:600}
+.outside-criteria[open]>summary{border-bottom:1px solid var(--border2)}
+.outside-criteria .oc-hint{padding:10px 14px 0;font-size:12.5px;color:var(--muted2)}
+.outside-criteria .card{margin:12px}
+.cmp-note{color:var(--muted2);font-size:12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:12.5px;border-radius:8px;padding:4px 10px;background:var(--surface2);border:1px solid transparent;color:var(--text2)}
 .chip.yes{color:#9ff0c5;background:#16301f}.chip.no{color:#e0b9ff;background:#2e2144}.chip.mid{color:#ffd58e;background:#3a3018}.chip.mut{color:var(--muted)}
@@ -468,7 +476,7 @@ function latestChange(l){
 /* ---------------- filtering (profile × quick × more, group-aware) ---------------- */
 // filters evaluated over EVERY member ad of a likely group, so a secondary ad's
 // signal never hides the property card
-const MEMBER_FILTERS=['newmarket','newdisc','updated','reduced','increased','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
+const MEMBER_FILTERS=['newmarket','newdisc','updated','reduced','increased','shortlisted','reviewed'];
 function rowMatches(l,filter,rev){
   const label=l.status_label||'';
   switch(filter){
@@ -486,8 +494,12 @@ function rowMatches(l,filter,rev){
     case'shortlisted':return !!(rev[l.id]&&rev[l.id].state==='shortlist');
     case'reviewed':return !!(rev[l.id]&&rev[l.id].state==='reviewed');
     case'dismissed':return !!(rev[l.id]&&rev[l.id].state==='dismissed');
-    case'A_investment_1br':case'B_residence_2br':case'C_piraeus_univ_1br':
-      return (l.search_ids||[]).includes(filter);
+    case'A_investment_1br':case'B_residence_2br':case'C_piraeus_univ_1br':{
+      // qualification = COMPUTED eligibility from verified attributes, never the
+      // discovery search label (search_ids stays provenance only)
+      const el=(l.eligibility||{})[filter];
+      return !!el&&el.status==='eligible';
+    }
   }
   return true;
 }
@@ -601,16 +613,40 @@ function render(){
   const uniqueN=list.filter(l=>l.group&&groupIndex[l.group.property_id]&&l.id===groupIndex[l.group.property_id].primary_id).length;
   document.getElementById('resultbar').innerHTML=
     '<span><b class="num">'+list.length+'</b> propert'+(list.length===1?'y':'ies')+' in view'+(uniqueN&&uniqueN!==list.length?' <span>('+uniqueN+' grouped cards)</span>':'')+'</span>'+
-    '<span>· '+(meta.groups_likely||'?')+' confirmed · '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible duplicate groups</span>';
+    '<span>· '+(meta.groups_likely||'?')+' confirmed · '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible duplicate groups</span>'+
+    (ui.profile==='all'?'<span class="cmp-note">scores are per-strategy — A/B/C use different weights; compare within one profile</span>':'');
   const container=document.getElementById('listings');
+  let html;
   if(list.length===0){
-    container.innerHTML='<div class="empty"><b>No properties match</b>Try removing a filter or clearing the search. Confirmed duplicate groups collapse to one card — open “All individual ads” to see every advertisement.</div>';
-    return;
+    html='<div class="empty"><b>No properties match</b>Try removing a filter or clearing the search. Confirmed duplicate groups collapse to one card — open “All individual ads” to see every advertisement.</div>';
+  }else{
+    html=list.map(l=>cardHtml(l,rev)).join('');
   }
-  container.innerHTML=list.map(l=>cardHtml(l,rev)).join('');
+  // secondary view: rows DISCOVERED via this profile's search that computed
+  // eligibility does not qualify — kept discoverable for manual review
+  if(ui.profile!=='all'){
+    const pid=ui.profile;
+    const outside=propertyView().filter(l=>{
+      const disc=(l.search_ids||[]).includes(pid);
+      const st=(((l.eligibility||{})[pid])||{}).status;
+      if(!disc||!st||st==='eligible')return false;
+      // dismissed properties stay dismissed here too — the review section
+      // must not resurrect rows the user already dismissed
+      return memberRows(l).some(m=>!(rev[m.id]&&rev[m.id].state==='dismissed'));
+    });
+    if(outside.length){
+      sortList(outside);
+      html+='<details class="outside-criteria" id="outsideCriteria"><summary>Discovered via this search but not qualified — '+outside.length+' propert'+(outside.length===1?'y':'ies')+' (review)</summary>'+
+        '<p class="oc-hint">Eligibility is computed from verified attributes (municipality, neighborhood exclusions, size, bedrooms, floor, price cap). These were found by the source search but fail its rules or need verification — they remain in All searches and keep their own scores.</p>'+
+        outside.map(l=>cardHtml(l,rev)).join('')+'</details>';
+    }
+  }
+  container.innerHTML=html;
   window.__renderMs=Math.round(performance.now()-t0);
 }
 const PROFILE_LABELS={A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed'};
+const PROFILE_SHORT={A_investment_1br:'Profile A',B_residence_2br:'Profile B',C_piraeus_univ_1br:'Profile C'};
+const PROFMAP={A:'A_investment_1br',B:'B_residence_2br',C:'C_piraeus_univ_1br'};
 const QUICK_LABELS={newmarket:'New on market',reduced:'Price reductions',reviewed:'Reviewed'};
 function clearFilter(kind){
   if(kind==='profile')ui.profile='all';
@@ -655,7 +691,7 @@ function cardHtml(l,rev){
   const mv=l.movement||{},label=l.status_label||'';
   const isRemoved=l.status&&(l.status+'').indexOf('removed')>-1;
   const rv=rev[l.id]||{};
-  const pricePerSqm=(l.price_eur&&l.size_sqm>0)?Math.round(l.price_eur/l.size_sqm):null;
+  const pricePerSqm=((l.price_effective||l.price_eur)&&l.size_sqm>0)?Math.round(pps(l)):null;  // ranking basis (effective ask for grouped properties)
   const score=(l.score_v2!=null)?l.score_v2:(l.score||0);
   const prof=l.score_v2_profile||'';
   const ch=l.characteristics||{},loc=l.location||{},nb=l.neighborhood_info||{};
@@ -692,6 +728,20 @@ function cardHtml(l,rev){
   }else if(isPossible){
     grp='<div class="possible-chip">⚠ Possible duplicate — '+l.group.n_ads+' similar ads (unverified match; each ad stays listed separately)</div>';
   }
+  // eligibility verdict for the row's scoring profile — scoring and UI must agree
+  const profKey=PROFMAP[l.score_v2_profile||'']||'';
+  const profEl=profKey?(l.eligibility||{})[profKey]:null;
+  let elChip='';
+  if(profEl&&profEl.status==='ineligible')
+    elChip='<div class="possible-chip ooc-chip">Outside '+esc(PROFILE_SHORT[profKey]||profKey)+' criteria — '+esc(profEl.reasons[0]||'')+(profEl.reasons.length>1?' (+'+(profEl.reasons.length-1)+' more)':'')+'</div>';
+  else if(profEl&&profEl.status==='needs_verification')
+    elChip='<div class="possible-chip nv-chip">Verify before relying on '+esc(PROFILE_SHORT[profKey]||profKey)+' fit — '+esc(profEl.reasons[0]||'')+'</div>';
+  // freshness: availability signal, separate from attractiveness
+  const frsh=l.freshness||{};
+  let freshChip='';
+  if(frsh.class==='aging')freshChip='<span class="u" style="color:var(--warn)">not observed '+frsh.days+'d ago</span>';
+  else if(frsh.class==='stale')freshChip='<span class="u" style="color:var(--warn)">not observed '+frsh.days+'d — availability unconfirmed</span>';
+  else if(frsh.class==='unknown')freshChip='<span class="u" style="color:var(--warn)">availability unknown</span>';
   // cross-portal leads (annotation only — never grouped, never scored)
   let xlead='';
   const xl=(XREF.refs||{})[l.id];
@@ -739,10 +789,11 @@ function cardHtml(l,rev){
       '<span><b>'+(l.size_sqm>0?esc(String(l.size_sqm)):'?')+'</b><span class="u"> m²</span></span>'+
       '<span><b>'+(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'?')+'</b><span class="u"> bed</span></span>'+
       '<span><b>'+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'?')+'</b><span class="u"> fl</span></span>'+
-      (pricePerSqm?'<span><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':'')+
+      (pricePerSqm?'<span title="€/m² on the ranking price — the lowest active ask for grouped properties"><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':'')+
       (dateStr?'<span class="u" style="color:var(--muted)">'+esc(dateStr)+'</span>':'')+
+      (freshChip||'')+
     '</div>'+
-    (grp||'')+(xlead||'')+
+    (grp||'')+(elChip||'')+(xlead||'')+
     whyHtml+
     (val?'<div class="chips">'+val+'</div>':'')+
     (conditionChips(l)?'<div class="chips">'+conditionChips(l)+'</div>':'')+
@@ -913,15 +964,17 @@ function renderDetail(l){
   /* overview */
   const ppsVal=(l.price_eur&&l.size_sqm>0)?Math.round(l.price_eur/l.size_sqm):null;
   const effVal=(l.price_effective&&l.price_effective!==l.price_eur)?l.price_effective:null;
+  const ppsEff=(effVal&&l.size_sqm>0)?Math.round(effVal/l.size_sqm):null;
   const ov='<div class="msec"><h3>Overview</h3><div class="kv">'+
     cell('Asking price','<span class="num">'+money(l.price_eur)+'</span>'+(mv.previous?' <span style="text-decoration:line-through;color:var(--muted2)" class="num">'+money(mv.previous)+'</span>':'')+(mvChip?'<div style="margin-top:4px">'+mvChip+'</div>':''))+
     (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the confirmed group'):'' )+
     cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):(loc.evidence||''))+
-    cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',ppsVal?'asking <span class="num">'+ppsVal+' €/m²</span>':'')+
+    cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',(ppsEff?'asking <span class="num">'+ppsVal+' €/m²</span> · ranks at <span class="num">'+ppsEff+' €/m²</span> (lowest active ask)':(ppsVal?'<span class="num">'+ppsVal+' €/m²</span>':'')))+
     cell('Bedrooms / floor',(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—'))+
     cell('Published',d.published?fmtDate(d.published):'unknown',d.published_missing?'source did not provide this date':'from the source advertisement')+
     cell('Found by tracker',d.first_seen?fmtDate(d.first_seen):'—')+
-    cell('Last seen',d.last_seen?fmtDate(d.last_seen):'—',l.stale?'stale — not confirmed recently':'')+
+    cell('Last seen',d.last_seen?fmtDate(d.last_seen):'—',((l.freshness||{}).days!=null?l.freshness.days+' days ago · ':'')+((l.freshness||{}).note||(l.stale?'stale — not confirmed recently':'')))+
+    cell('Last checked (detail visit)',(l.freshness||{}).last_checked?fmtDate(l.freshness.last_checked):'—','date of the last successful detail-page visit — separate from search observation; very old rows may carry a legacy scan date')+
     cell('Last price change',d.last_updated?fmtDate(d.last_updated):'—')+
     '</div>'+(l.status_label?'<div style="margin-top:10px"><span class="pbadge '+(l.status_label==='NEW ON MARKET'?'new':(l.status_label==='NEWLY DISCOVERED'?'newdisc':'updated'))+'">'+esc(l.status_label)+'</span></div>':'')+'</div>';
   function cell(k,v,note){return '<div class="cell"><div class="k">'+k+'</div><div class="v">'+(v||'—')+'</div>'+(note?'<div class="note">'+note+'</div>':'')+'</div>'}
@@ -1083,6 +1136,19 @@ document.addEventListener('keydown',e=>{
     const t=e.target;
     if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;
     gNav(e.key==='ArrowLeft'?-1:1);return;
+  }
+  if(e.key==='Tab'&&document.getElementById('viewer').classList.contains('open')){
+    // the enlarged-photo viewer owns ALL keyboard focus while open — Tab never
+    // escapes behind it into the underlying details modal
+    const v=document.getElementById('viewer');
+    const f=v.querySelectorAll('button,[href],[tabindex]:not([tabindex="-1"])');
+    if(f.length){
+      const first=f[0],last=f[f.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+      else if(!v.contains(document.activeElement)){e.preventDefault();first.focus()}
+    }
+    return;
   }
   if(e.key==='Tab'&&document.getElementById('modal').classList.contains('open')){
     const panel=document.getElementById('modalPanel');
