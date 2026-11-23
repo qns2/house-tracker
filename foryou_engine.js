@@ -734,8 +734,6 @@
     entries = Array.isArray(entries) ? entries : (entries ? [entries] : []);
     state.entriesIndex = buildIndex(entries);   // group identities for _vote_key
     var votes = computeVotes(reviews);
-
-    var votes = computeVotes(reviews);
     var prefs = computePrefs(votes);
     var mods = {};
     PERSONAL_FACTORS.forEach(function (f) {

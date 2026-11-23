@@ -1264,7 +1264,7 @@ function renderDetail(l){
   if(gp&&gp.n_ads>1){
     const rangeTxt=(gp.max_active_price>gp.min_active_price)
       ?money(gp.min_active_price)+'–'+money(gp.max_active_price)+' asking range':'all ads ask '+money(gp.min_active_price);
-    gpTxt='<div class="sub">Same property across '+gp.n_ads+' ads: '+rangeTxt+' — ranking uses the lowest active ask ('+money(l.price_effective)+')'
+    gpTxt='<div class="sub">'+((l.group&&l.group.level)==='confirmed'?'Same property across':'Likely duplicate group (unverified hypothesis) across')+' '+gp.n_ads+' ads: '+rangeTxt+' — ranking uses the lowest active ask ('+money(l.price_effective)+')'
       +(gp.stale_excluded?' · '+gp.stale_excluded+(gp.stale_excluded===1?' stale ad':' stale ads')+' excluded':'')+'</div>';
   }
   /* overview */
@@ -1274,7 +1274,7 @@ function renderDetail(l){
   const ov='<div class="msec"><h3>Overview</h3><div class="kv">'+
     cell('Asking price','<span class="num">'+money(l.price_eur)+'</span>'+(mv.previous?' <span style="text-decoration:line-through;color:var(--muted2)" class="num">'+money(mv.previous)+'</span>':'')+(mvChip?'<div style="margin-top:4px">'+mvChip+'</div>':''))+
     (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the '+((l.group&&l.group.level)==='confirmed'?'confirmed':'likely-grouped')+' ads'):'' )+
-    cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):(loc.evidence||''))+
+    cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):esc(loc.evidence||''))+
     cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',(ppsEff?'asking <span class="num">'+ppsVal+' €/m²</span> · ranks at <span class="num">'+ppsEff+' €/m²</span> (lowest active ask)':(ppsVal?'<span class="num">'+ppsVal+' €/m²</span>':'')))+
     cell('Bedrooms / floor',(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—'))+
     cell('Published',d.published?fmtDate(d.published):'unknown',d.published_missing?'source did not provide this date':'from the source advertisement')+
@@ -1475,7 +1475,7 @@ function fySection(id){
   const mo=ff.max_affordable_offer;
   const moTxt=mo?('max affordable offer <b>'+fmtK(mo.expected)+'</b> (range '+fmtK(mo.low)+'–'+fmtK(mo.high)+')'
     +(ff.asking_vs_max_offer!=null?' — asking is '+fmtK(Math.abs(ff.asking_vs_max_offer))+(ff.asking_vs_max_offer>0?' above':' below')+' its midpoint':'')):'max offer requires verified condition';
-  const renoNotes=(ff.renovation.notes||[]).length?'<div class="dim" style="font-size:12.5px">'+esc(ff.renovation.notes.slice(0,2).join(' · '))+'</div>':'';
+  const renoNotes=((ff.renovation||{}).notes||[]).length?'<div class="dim" style="font-size:12.5px">'+esc((ff.renovation||{}).notes.slice(0,2).join(' · '))+'</div>':'';
   return '<div class="msec fy"><h3>★ For You — personal fit & affordability</h3>'
     +'<div class="fy-head ' +fyFeasClass(ff.feasibility)+'"><span class="fy-big">Personal '+Math.round(pf.score)+'</span>'
     +'<span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'
@@ -1484,12 +1484,12 @@ function fySection(id){
     +'<div class="fy-cols"><div><b>Matters for you</b><ul>'+li(pf.positives)+'</ul></div>'
     +'<div><b>Watch / missing</b><ul>'+li(pf.negatives.concat(pf.unknown_factors.map(u=>u+' (not stated — verify)')))+'</ul></div></div>'
     +'<table class="fy-fin"><thead><tr><th>Cost component (€)</th><th>Low</th><th>Expected</th><th>High</th></tr></thead><tbody>'
-    +scenRow('Renovation ('+esc(ff.renovation.class)+' — '+esc((ff.renovation.scopes||[]).join(', '))+')',ff.renovation.scenarios_eur)
+    +scenRow('Renovation ('+esc(((ff.renovation||{}).class)||'unknown')+' — '+esc((((ff.renovation||{}).scopes)||[]).join(', '))+')',(ff.renovation||{}).scenarios_eur)
     +scenRow('Acquisition expenses (transfer tax, notary, registry'+(ff.acquisition&&ff.acquisition.parts&&ff.acquisition.parts.agent_commission?', agent commission':'')+')',ff.acquisition&&ff.acquisition.scenarios_eur)
     +scenRow('Contingency',ff.contingency)
-    +'<tr class="tot"><td>All-in total (asking '+fmtK(ff.asking_price)+')'+(ff.all_in&&ff.all_in.expected!=null&&ff.all_in.expected<=(FY.contract?FY.contract.budget:250000)?' ✓ fits':' ✗ over')+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.low)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.expected)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.high)+'</td></tr>'
+    +'<tr class="tot"><td>All-in total (asking '+fmtK(ff.asking_price)+')'+(ff.all_in&&ff.all_in.expected!=null?(ff.all_in.expected<=(FY.contract?FY.contract.budget:FY.payload&&FY.payload.budget||250000)?' ✓ fits':' ✗ over'):' · unknown — condition not verified')+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.low)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.expected)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.high)+'</td></tr>'
     +'</tbody></table>'
-    +'<div class="fy-note">'+esc(moTxt)+'</div>'+renoNotes
+    +'<div class="fy-note">'+moTxt+'</div>'+renoNotes
     +'<div class="disclaimer">⚠ Affordability estimate, not a market-value or seller-acceptance claim. Transfer-tax exemption eligibility and agent commission are configurable assumptions ('+(ff.assumptions_note?'see below':'financing_assumptions.json')+') — not assumed in your favor.</div>'
     +'<div class="dim" style="font-size:12px">Pricing basis: '
     +(ent.price_label==='group-confirmed'
@@ -1526,7 +1526,7 @@ menuBtn.addEventListener('click',()=>{
 });
 document.addEventListener('click',e=>{if(!menuPop.contains(e.target)&&!menuBtn.contains(e.target)){menuPop.classList.remove('open');menuBtn.setAttribute('aria-expanded','false')}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menuPop.classList.contains('open')){menuPop.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');menuBtn.focus()}});
-document.getElementById('refreshBtn').addEventListener('click',()=>{menuPop.classList.remove('open');loadAll();toast('↻ Page data reloaded (no new collection)')});
+document.getElementById('refreshBtn').addEventListener('click',()=>{menuPop.classList.remove('open');loadAll();fyBoot(true);toast('↻ Page data reloaded (no new collection)')});
 document.getElementById('exportBtn').addEventListener('click',()=>{
   const fy=JSON.parse(localStorage.getItem(FY_PREFS_KEY)||'null');
   const blob=new Blob([JSON.stringify({format:'house-tracker-for-you-v2',exported:new Date().toISOString(),reviews:reviews(),fy_prefs:(fy&&fy.version===2)?{edits:fy.edits||{}}:null},null,2)],{type:'application/json'});
@@ -1614,7 +1614,7 @@ function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify(ui))}catch(e){}
     if(b.dataset.profile===ui.profile)b.setAttribute('aria-selected','true');
     b.addEventListener('click',()=>{
       ui.profile=b.dataset.profile;
-      if(ui.profile==='foryou'&&!/^foryou_/.test(ui.sort||''))ui.sort='foryou_combined';
+      if(ui.profile==='foryou'&&!/^foryou_/.test(ui.sort||'')){ui.sort='foryou_combined';document.getElementById('sort').value=ui.sort;}
       if(ui.profile!=='foryou'&&/^foryou_/.test(ui.sort||''))ui.sort='score';
       saveUI();render()});
   });
