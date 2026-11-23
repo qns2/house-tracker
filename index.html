@@ -857,17 +857,27 @@ function cardHtml(l,rev){
 
 /* ---------------- copy to clipboard ---------------- */
 function copyText(t){
-  const done=()=>toast('⧉ Copied');
+  // success is only reported when a copy path actually succeeded (P2)
+  const fail=()=>toast('⚠ Copy failed — clipboard blocked by the browser');
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(done,function(){fallbackCopy(t);done();});
-  }else{fallbackCopy(t);done();}
+    navigator.clipboard.writeText(t).then(()=>toast('⧉ Copied'),function(){
+      if(fallbackCopy(t))toast('⧉ Copied');else fail();
+    });
+  }else if(fallbackCopy(t)){toast('⧉ Copied');}
+  else{fail();}
 }
 function fallbackCopy(t){
-  const ta=document.createElement('textarea');ta.value=t;
-  ta.style.position='fixed';ta.style.opacity='0';
-  document.body.appendChild(ta);ta.select();
-  try{document.execCommand('copy');}catch(e){}
-  document.body.removeChild(ta);
+  const ta=document.createElement('textarea');
+  try{
+    ta.value=t;
+    ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    const ok=document.execCommand&&document.execCommand('copy');
+    return !!ok;
+  }catch(e){return false;}
+  finally{
+    if(ta&&ta.parentNode)ta.parentNode.removeChild(ta);   // REV-011: no leaked node
+  }
 }
 function listingText(id){
   const l=(allListings.find(x=>x.id===id))||{};
@@ -981,7 +991,7 @@ function openGroup(pid){
     '<button class="mclose" onclick="closeModal()" aria-label="Close group view">✕</button></div>'+
     '<div class="panel-inner">'+
     '<div class="msec"><h3>'+(g.level==='confirmed'?'Confirmed duplicate group (strong-evidence standard)':'Likely duplicate group')+'</h3>'+
-    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched on description similarity '+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+' — an algorithmic score, not a probability of sameness'+(g.level==='confirmed'?' (meets the documented strong-evidence standard)':'')+'. All ads below are believed to describe the <b>same physical property</b>. Each advertisement keeps its own price history and source link; nothing is merged. Where asking prices differ, verify on the ad pages — the lowest active ask is used for ranking, not as a claim of negotiating room.</p>'+rowsHtml+'</div></div>';
+    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched on description similarity '+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+' — an algorithmic score, not a probability of sameness'+(g.level==='confirmed'?' (meets the documented strong-evidence standard)':'')+'. All ads below are believed to describe the <b>same physical property</b>'+(g.level==='confirmed'?' (confirmed: shared photographic evidence)':' but are <b>NOT confirmed</b> — the match is a high-similarity hypothesis.')+'. Each advertisement keeps its own price history and source link; nothing is merged. Where asking prices differ, verify on the ad pages — the lowest active ask is used for ranking, not as a claim of negotiating room.</p>'+rowsHtml+'</div></div>';
   document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
 
@@ -1055,7 +1065,7 @@ function renderDetail(l){
   const ppsEff=(effVal&&l.size_sqm>0)?Math.round(effVal/l.size_sqm):null;
   const ov='<div class="msec"><h3>Overview</h3><div class="kv">'+
     cell('Asking price','<span class="num">'+money(l.price_eur)+'</span>'+(mv.previous?' <span style="text-decoration:line-through;color:var(--muted2)" class="num">'+money(mv.previous)+'</span>':'')+(mvChip?'<div style="margin-top:4px">'+mvChip+'</div>':''))+
-    (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the confirmed group'):'' )+
+    (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the '+(g.level==='confirmed'?'confirmed':'likely-grouped')+' ads'):'' )+
     cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):(loc.evidence||''))+
     cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',(ppsEff?'asking <span class="num">'+ppsVal+' €/m²</span> · ranks at <span class="num">'+ppsEff+' €/m²</span> (lowest active ask)':(ppsVal?'<span class="num">'+ppsVal+' €/m²</span>':'')))+
     cell('Bedrooms / floor',(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—'))+
