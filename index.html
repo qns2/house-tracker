@@ -90,6 +90,33 @@ button{font:inherit;color:inherit}
 .pbadge.new{color:#9ff0c5}.pbadge.newdisc{color:#c4b2ff}.pbadge.updated{color:#ffd58e}.pbadge.removed{color:#ff9d94}
 .rev-ribbon{position:absolute;top:8px;right:8px;font-size:12px;font-weight:700;padding:4px 9px;border-radius:7px;background:#0c0c16e0}
 .rev-ribbon.shortlist{color:#ffe08a}.rev-ribbon.reviewed{color:#9fe3ff}.rev-ribbon.dismissed{color:#ff9d94}
+.fy-strip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-4px 0 6px;padding:6px 10px;border-radius:9px;font-size:12.5px;background:rgba(255,255,255,.04);border:1px solid var(--border)}
+.fy-strip.fy-ok{border-color:rgba(80,200,120,.45);background:rgba(80,200,120,.08)}
+.fy-strip.fy-mid{border-color:rgba(240,180,70,.4);background:rgba(240,180,70,.07)}
+.fy-strip.fy-bad{border-color:rgba(230,90,80,.4);background:rgba(230,90,80,.07)}
+.fy-strip .fy-feas{font-weight:600}
+.fy-strip.fy-ok .fy-feas{color:#7ed8a0}.fy-strip.fy-mid .fy-feas{color:#f0b446}.fy-strip.fy-bad .fy-feas{color:#ff9d94}.fy-strip.fy-unknown .fy-feas{color:var(--muted)}
+.fy-reasons{margin:2px 0 8px}
+.fy-toggle{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 0;text-decoration:underline dotted}
+.fy-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.fy-chips .chip{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);cursor:pointer;min-height:26px}
+.fy-chips .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.fy-other{font-size:12px;color:var(--muted2)}
+.fy-head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;padding:8px 12px;border-radius:9px;border:1px solid var(--border);margin:0 0 10px}
+.fy-head .fy-big{font-weight:700;font-size:15px}
+.msec.fy table.fy-fin{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+.fy-fin th,.fy-fin td{border-bottom:1px solid var(--border);padding:4px 6px;text-align:left}
+.fy-fin th{color:var(--muted2);font-weight:500;font-size:11.5px}
+.fy-fin tr.tot td{font-weight:600;border-top:1px solid var(--border)}
+.fy-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;font-size:13px}
+.fy-cols ul{margin:4px 0 0;padding-left:16px;color:var(--text)}
+.fy-cols .dim,.dim{color:var(--muted2)}
+.fy-note{margin:6px 0;font-size:13px;color:var(--text)}
+.fy-prow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.fy-prow label{flex:1;font-weight:600}
+.fy-prow input{width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px}
+.msec.fy ul{font-size:12.5px}
+@media(max-width:640px){.fy-cols{grid-template-columns:1fr}}
 .card-body{display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;flex:1}
 .price-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .price{font-size:24px;font-weight:700;white-space:nowrap;letter-spacing:-.3px}
@@ -292,6 +319,7 @@ button{font:inherit;color:inherit}
   </div>
   <div class="menu-pop" id="menuPop" role="menu" aria-label="Tools and data information">
     <button role="menuitem" id="refreshBtn">↻ Reload page data<small style="color:var(--muted2);font-weight:400">no new collection</small></button>
+    <button role="menuitem" id="fyPrefsBtn">★ For You preferences<small style="color:var(--muted2);font-weight:400">inspect / edit learned weights</small></button>
     <button role="menuitem" id="exportBtn">⬇ Export review decisions</button>
     <button role="menuitem" id="importBtn">⬆ Import review decisions</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" aria-hidden="true" tabindex="-1">
@@ -302,6 +330,7 @@ button{font:inherit;color:inherit}
 
 <nav class="profiles" role="tablist" aria-label="Search profiles">
   <button class="profile-tab" role="tab" data-profile="all" aria-selected="true" title="Every property across all configured searches">All searches</button>
+  <button class="profile-tab" role="tab" data-profile="foryou" aria-selected="false" title="Personal fit × affordability — your preferences, renovation budget and maximum affordable offer">★ For You <small>personal</small></button>
   <button class="profile-tab" role="tab" data-profile="A_investment_1br" aria-selected="false" title="Profile A — 1-bed investment, 50-60 sqm, buy to rent, Nea Smyrni, floor 2+, up to €250K">A · 1-Bed Investment <small>Nea Smyrni</small></button>
   <button class="profile-tab" role="tab" data-profile="B_residence_2br" aria-selected="false" title="Profile B — 2-bed residence 80-140 sqm, personal home, Nea Smyrni (Ano excluded), floor 2+, up to €250K">B · 2-Bed Residence <small>Nea Smyrni</small></button>
   <button class="profile-tab" role="tab" data-profile="C_piraeus_univ_1br" aria-selected="false" title="Profile C — 1-bed investment, Piraeus center near the University of Piraeus, 50-60 sqm, floor 2+, up to €250K">C · Piraeus 1-Bed <small>University area</small></button>
@@ -340,6 +369,11 @@ button{font:inherit;color:inherit}
       <option value="size_desc">Largest size</option>
       <option value="price_desc">Highest price</option>
       <option value="pps_desc">Highest €/sqm</option>
+      <option class="fy-opt" value="foryou_combined" hidden>★ Best combination (fit × affordability)</option>
+      <option class="fy-opt" value="foryou_personal" hidden>★ Best Personal Fit</option>
+      <option class="fy-opt" value="foryou_financial" hidden>★ Best Financial Fit</option>
+      <option class="fy-opt" value="foryou_opportunity" hidden>★ Renovation / negotiation opportunity</option>
+      <option class="fy-opt" value="foryou_similar" hidden>★ Similar to my favorites</option>
     </select>
   </div>
   <div class="searchwrap">
@@ -360,7 +394,7 @@ button{font:inherit;color:inherit}
 <script>
 let allListings=[],meta={},groupIndex={},searchStrings=new Map();
 const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
-const PROFILES=['all','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
+const PROFILES=['all','foryou','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
 const ui={profile:'all',quick:'all',more:'',sort:'score',search:''};
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function pps(l){const p=l.price_effective||l.price_eur;return (p&&l.size_sqm>0)?p/l.size_sqm:1e9}
@@ -393,6 +427,7 @@ async function loadAll(){
       fetch('api/cross_portal.json').then(r=>r.json()).catch(()=>({refs:{}}))
     ]);
     allListings=lRes;meta=mRes||{};XREF=xRes||{refs:{}};window.__loadedAt=new Date();
+    fyBoot();
     buildSearchStrings();buildGroupIndex();
     const up=meta.last_scan_at?('Last data: <b>'+fmtDataFresh(meta.last_scan_at)+'</b> · daily refresh ~11:00 (Athens)'):'';
     document.getElementById('freshness').innerHTML=up;
@@ -501,6 +536,10 @@ function rowMatches(l,filter,rev){
       const el=(l.eligibility||{})[filter];
       return !!el&&el.status==='eligible';
     }
+    case'foryou':
+      // personal-residence universe: For You fits come from the server engine
+      // (Nea Smyrni rows incl. Ano; investment eligibility deliberately NOT applied)
+      return !!(FY.fits&&FY.fits[l.id]);
   }
   return true;
 }
@@ -509,7 +548,7 @@ function matchesFilter(l,filter,rev){
   return rowMatches(l,filter,rev);
 }
 // views that collapse likely groups to one primary card
-const GROUPED_VIEWS=['quickall','newmarket','newdisc','updated','reduced','increased','top','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
+const GROUPED_VIEWS=['quickall','newmarket','newdisc','updated','reduced','increased','top','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br','foryou'];
 function collapsedView(){
   if(ui.more==='allads')return false;   // explicit ungrouped view
   const activeMore=ui.more||'';
@@ -535,7 +574,6 @@ function currentList(){
     &&(ui.quick==='all'||matchesFilter(l,ui.quick,rev))
     &&(!ui.more||ui.more==='allads'?true:matchesFilter(l,ui.more,rev))
     &&notDismissed(l));
-  if(!search)return base;
   // searching grouped properties still finds matching secondary ads:
   // a hit inside a likely group promotes the primary card
   const memberHits=new Set();
@@ -544,12 +582,26 @@ function currentList(){
     if(g&&l.id!==g.primary_id&&base.some(p=>p.id===g.primary_id)&&
        (searchStrings.get(l.id)||'').includes(search))memberHits.add(g.primary_id);
   }
-  return base.filter(l=>(searchStrings.get(l.id)||'').includes(search)||memberHits.has(l.id));
+  base=base.filter(l=>(searchStrings.get(l.id)||'').includes(search)||memberHits.has(l.id));
+  // For You ranks come precomputed from the deterministic engine; the engine's
+  // order replaces the generic sort (search filtering already applied above)
+  const fyMode=/^foryou_(\w+)/.exec(ui.sort||'');
+  let order=(ui.profile==='foryou'&&fyMode&&FY.ranked)?FY.ranked[fyMode[1]]:null;
+  if(ui.profile==='foryou'&&fyMode&&fyMode[1]==='similar'){
+    const o=fySimilarOrder();
+    order=o.length?o:(FY.ranked.combined||[]);     // no favorites yet -> combined order
+  }
+  if(order&&order.length){
+    const rank={};order.forEach((id2,i)=>{if(rank[id2]===undefined)rank[id2]=i;});
+    return base.slice().sort((a,b)=>(rank[a.id]!==undefined?rank[a.id]:1e9)-(rank[b.id]!==undefined?rank[b.id]:1e9));
+  }
+  return base;
 }
 
 /* ---------------- sorting ---------------- */
 function sortList(list){
   const sort=ui.sort;
+  if(ui.profile==='foryou'&&/^foryou_/.test(sort||''))return;   // engine-ranked
   const dropPct=l=>{const mv=memberReduction(l);return (mv&&mv.pct_change!=null)?Math.abs(mv.pct_change):-1;};
   const dropAbs=l=>{const mv=memberReduction(l);return (mv&&mv.abs_change!=null)?Math.abs(mv.abs_change):-1;};
   const changeDate=l=>{const mv=latestChange(l);return (mv&&(mv.changed_at||mv.previous_date))||'2000-01-01';};
@@ -568,6 +620,203 @@ function sortList(list){
       default:return (b.score_v2!=null?b.score_v2:(b.score||0))-(a.score_v2!=null?a.score_v2:(a.score||0));
     }
   });
+}
+
+/* ---------------- For You (personalization) ---------------- */
+const FY_KEY='houseTracker.foryou.v1', FY_PREFS_KEY='houseTracker.foryouPrefs.v1';
+// the four buyer seed observations (same ids the engine holds) — their
+// properties are excluded from aggregate counts so seeds never double-count
+const FY_SEED_ADS=['1120101887','1121023524','1121033535','1120126978'];
+const FY_REASONS={
+  shortlist:{light:'Excellent light',corner:'Corner',layout:'Spacious layout',floor:'Good floor level',location:'Great location',price:'Attractive price',renovation_potential:'Renovation potential',balconies:'Large balconies'},
+  dismiss:{floor:'Floor too low',light:'Poor lighting',layout:'Poor layout',size:'Too small',location:'Poor location',price:'Too expensive',renovation:'Excessive renovation',condition:'Poor building condition'}
+};
+const FY_FACTOR_LABELS={floor:'Floor level',lighting:'Natural light',corner:'Corner position',outlook:'Outlook / openness',size:'Size',layout:'Layout',bedrooms:'Bedrooms',location:'Location',elevator:'Elevator',balconies:'Balconies'};
+let FY={fits:null,ranked:null,prefsMod:null,contract:null,open:{}};
+function fyEdits(){try{const p=JSON.parse(localStorage.getItem(FY_PREFS_KEY))||{};return p.edits||{}}catch(e){return{}}}
+function fySaveEdits(edits){localStorage.setItem(FY_PREFS_KEY,JSON.stringify({version:1,edits:edits}));}
+function fyCache(){try{return JSON.parse(localStorage.getItem(FY_KEY))||null}catch(e){return null}}
+function fyCacheSave(payload){try{localStorage.setItem(FY_KEY,JSON.stringify(payload))}catch(e){}}
+function fyVotesHash(){
+  const rev=reviews();const out={};
+  for(const k of Object.keys(rev)){const r=rev[k]||{};if((r.reasons||[]).length||r.reason_note){out[k]={s:r.state,r:r.reasons||[]}}}
+  // data signature: a daily rebuild must invalidate cached fits
+  return JSON.stringify(out)+'|'+JSON.stringify(fyEdits())+'|'+(meta.active_rows||0)+'|'+(meta.enriched_at||'');
+}
+let FY_SIG=null;
+function fySignals(){
+  // PRIVACY CONTRACT: only numeric per-reason counts of DISTINCT properties
+  // leave the browser. Property ids/states/notes never do. The client does the
+  // property collapse (group ids available locally) and subtracts the seed
+  // properties so server seeds + user counts never double-count one property.
+  const rev=reviews();const counts={shortlist:{},dismiss:{}};const seen={};
+  const seedProp={};
+  for(const adid of FY_SEED_ADS){
+    const l=(allListings.find(x=>x.id===adid))||{};
+    const gid=l.group&&l.group.property_id;
+    if(gid)seedProp[gid]=1;
+  }
+  for(const adid of Object.keys(rev)){
+    const rv=rev[adid]||{};const rs=rv.reasons||[];
+    if(!rs.length)continue;
+    const l=(allListings.find(x=>x.id===adid))||{};
+    const pid=(l.group&&l.group.property_id)||adid;
+    if(seedProp[pid])continue;
+    const state=rv.state==='shortlist'?'shortlist':(rv.state==='dismissed'?'dismiss':null);
+    if(!state)continue;
+    const k=state+'|'+pid;
+    if(seen[k])continue;seen[k]=1;
+    for(const r of rs){counts[state][r]=(counts[state][r]||0)+1;}
+  }
+  return {vote_counts:counts};
+}
+let FYT=null;
+function fetchPersonal(force){
+  if(FY.loading)return;
+  const sig=fyVotesHash();
+  if(!force&&FY.SIG===sig&&FY.fits)return render();
+  FY.SIG=sig;
+  FY.loading=true;
+  fetch('/api/personal',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({signals:{vote_counts:(fySignals()||{}).vote_counts||{}},prefs:{edits:fyEdits()}})})
+  .then(r=>r.json()).then(p=>{
+    FY.fits=p.fits||{};FY.ranked=p.ranked||{};FY.prefsMod=p.prefs_effective||{};
+    FY.contract=p.personal_contract||null;FY.assumptions=p.assumptions||null;
+    fyCacheSave({sig:sig,payload:{fits:FY.fits,ranked:FY.ranked,prefsMod:FY.prefsMod,contract:FY.contract,assumptions:FY.assumptions}});
+    FY.loading=false;
+    render();
+  }).catch(()=>{FY.loading=false;render();});
+}
+function fyBoot(){
+  const c=fyCache();const sig=fyVotesHash();
+  if(c&&c.sig===sig&&c.payload){FY.fits=c.payload.fits;FY.ranked=c.payload.ranked;FY.prefsMod=c.payload.prefsMod;FY.contract=c.payload.contract;FY.assumptions=c.payload.assumptions;FY.SIG=sig;}
+  else fetchPersonal(true);
+}
+let FYTIMER=null;
+function fyRefresh(){clearTimeout(FYTIMER);FYTIMER=setTimeout(()=>fetchPersonal(true),800);}
+function fmtK(v){return v==null?'—':('€'+Math.round(v).toLocaleString('el-GR'))}
+function fyFeasClass(f){return f==='within_budget'?'fy-ok':(f==='potentially_within_budget_after_negotiation'?'fy-mid':(f==='over_budget'?'fy-bad':'fy-unknown'))}
+function fyFeasLabel(f){return f==='within_budget'?'Within budget':(f==='potentially_within_budget_after_negotiation'?'Potentially in budget after negotiation':(f==='over_budget'?'Over budget':(f==='insufficient_information'?'Insufficient information':'—')))}
+function fyStrip(l){
+  if(ui.profile!=='foryou')return'';
+  const fe=FY.fits&&FY.fits[l.id];if(!fe)return'';
+  const ff=fe.financial,pf=fe.personal;
+  const mo=ff.max_affordable_offer?(ff.max_affordable_offer.expected!=null?' · max offer '+fmtK(ff.max_affordable_offer.expected):''):'';
+  return '<div class="fy-strip '+fyFeasClass(ff.feasibility)+'" title="Personal fit vs €250k all-in budget (purchase + acquisition + renovation + contingency)">'
+    +'<b>Personal '+Math.round(pf.score)+'</b><span class="u">·</span>All-in '+fmtK(ff.all_in&&ff.all_in.expected)
+    +'<span class="u">·</span><span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'+mo+'</div>';
+}
+/* 'Similar to my favorites' — computed CLIENT-SIDE (no favorites leave the
+   browser): signature = strong positive/negative personal-fit factors
+   (quality >=0.7 / <=0.35), favorites = seed observations + every shortlisted
+   property (state only — chips/notes not required), one signature per
+   PROPERTY. Same formula as the engine reference implementation. */
+function fySigFrom(pf){
+  const pos=new Set(),neg=new Set();
+  for(const f of pf.factors||[]){
+    const q=f.quality;
+    if(q==null)continue;
+    if(q>=0.7)pos.add(f.key);else if(q<=0.35)neg.add(f.key);
+  }
+  return {pos:pos,neg:neg};
+}
+function fySimilarOrder(){
+  const rev=reviews();
+  const favAds=FY_SEED_ADS.slice();
+  for(const adid of Object.keys(rev)){
+    if((rev[adid]||{}).state==='shortlist'&&favAds.indexOf(adid)<0)favAds.push(adid);
+  }
+  const seenP={};const favSig={pos:new Set(),neg:new Set()};let any=false;
+  for(const fid of favAds){
+    const e=FY.fits&&FY.fits[fid];if(!e)continue;
+    const l=(allListings.find(x=>x.id===fid))||{};
+    const pid=(l.group&&l.group.property_id)||fid;
+    if(seenP[pid])continue;seenP[pid]=1;
+    const s=fySigFrom(e.personal);
+    s.pos.forEach(k=>favSig.pos.add(k));
+    s.neg.forEach(k=>favSig.neg.add(k));
+    any=true;
+  }
+  if(!any||(!favSig.pos.size&&!favSig.neg.size))return [];
+  const denom=favSig.pos.size+0.5*favSig.neg.size;
+  const out=[];
+  for(const id of Object.keys(FY.fits||{})){
+    const e=FY.fits[id];const s=fySigFrom(e.personal);
+    let cnt=0,cntN=0;
+    s.pos.forEach(k=>{if(favSig.pos.has(k))cnt++;});
+    s.neg.forEach(k=>{if(favSig.neg.has(k))cntN++;});
+    const sim=Math.min(1,(cnt+0.5*cntN)/denom)*100;
+    out.push({id:id,sim:Math.round(sim*10)/10,ps:(e.personal||{}).score||0});
+  }
+  out.sort((a,b)=>b.sim-a.sim||b.ps-a.ps);
+  return out.map(x=>x.id);
+}
+function setReviewReason(id,key){
+  const rev=reviews();const cur=rev[id]||{};
+  const state=cur.state==='shortlist'?'shortlist':(cur.state==='dismissed'?'dismissed':null);
+  if(!state)return;
+  const allowed=Object.keys(FY_REASONS[state]||{});
+  let rs=(cur.reasons||[]).slice();
+  if(rs.indexOf(key)>=0)rs=rs.filter(k=>k!==key);else rs.push(key);
+  rs=rs.filter(k=>allowed.indexOf(k)>=0).slice(0,8);
+  rev[id]={state:state,note:cur.note||'',at:cur.at||new Date().toISOString(),
+           snap:cur.snap||{price:''},reasons:rs,reason_note:cur.reason_note||''};
+  if(!rs.length)delete rev[id].reasons;
+  localStorage.setItem(REV_KEY,JSON.stringify(rev));
+  delete FY.SIG;fyRefresh();
+  refreshAfterReview(id);
+  toast('Preference saved — For You ranking updated');
+}
+function setReviewOtherNote(id){
+  const rev=reviews();const cur=rev[id]||{};
+  const state=cur.state==='shortlist'?'shortlist':(cur.state==='dismissed'?'dismissed':null);
+  if(!state)return;
+  const v=prompt('Reason (free text):',cur.reason_note||'');
+  if(v===null)return;
+  rev[id]={state:state,note:cur.note||'',at:cur.at||new Date().toISOString(),
+           snap:cur.snap||{price:''},reasons:cur.reasons||[],reason_note:String(v).slice(0,200)};
+  if(!rev[id].reasons.length)delete rev[id].reasons;
+  if(!rev[id].reason_note)delete rev[id].reason_note;
+  localStorage.setItem(REV_KEY,JSON.stringify(rev));
+  delete FY.SIG;fyRefresh();refreshAfterReview(id);
+}
+function fyChips(l,rv){
+  const state=rv.state==='shortlist'?'shortlist':(rv.state==='dismissed'?'dismissed':null);
+  if(!state)return'';
+  const map=FY_REASONS[state];if(!map)return'';
+  const sel=rv.reasons||[];
+  FYUI_OPEN[l.id]=FYUI_OPEN[l.id]!==undefined?FYUI_OPEN[l.id]:(sel.length>0);
+  const open=FYUI_OPEN[l.id];
+  const chips=Object.keys(map).map(k=>
+    '<button class="chip'+(sel.indexOf(k)>=0?' on':'')+'" aria-pressed="'+(sel.indexOf(k)>=0)+'" onclick="setReviewReason(\''+esc(l.id)+'\',\''+k+'\')" title="'+esc(map[k])+'">'+esc(map[k])+'</button>'
+  ).join('');
+  const other=rv.reason_note?'<span class="fy-other">Other: '+esc(rv.reason_note)+'</span>':'<span class="fy-other"><button class="chip" onclick="setReviewOtherNote(\''+esc(l.id)+'\')">Other…</button></span>';
+  return '<div class="fy-reasons"><button class="fy-toggle" aria-expanded="'+open+'" onclick="fyToggleChips(\''+esc(l.id)+'\')">Why? '+esc(state==='shortlist'?'why shortlisted':'why dismissed')+'</button>'
+    +(open?'<div class="fy-chips">'+chips+other+'</div>':'')+'</div>';
+}
+const FYUI_OPEN={};
+function fyToggleChips(id){FYUI_OPEN[id]=!FYUI_OPEN[id];render();}
+/* For You settings popover (inspect / edit / reset learned preferences) */
+function openForYouPrefs(){
+  const fe=FY.prefsMod||{};const edits=fyEdits();
+  const rows=Object.keys(FY_FACTOR_LABELS).map(k=>{
+    const learned=fe[k]!=null?fe[k]:1.0;const ed=edits[k];
+    return '<div class="fy-prow"><label>'+esc(FY_FACTOR_LABELS[k])+'</label>'
+      +'<span class="u">weight ×'+(ed!=null?ed:learned)+(ed!=null?' (manual)':' (learned)')+'</span>'
+      +'<input type="number" step="0.05" min="0.2" max="2" value="'+(ed!=null?ed:learned)+'" onchange="fySetEdit(\''+k+'\',this.value)"></div>';
+  }).join('');
+  openShell('<div class="msec"><h3>For You — learned preferences</h3>'
+    +'<p style="font-size:13px;color:var(--muted)">Base weights live in the tracker engine; your shortlist/dismissal reasons adjust them (capped at ×1.2, needing ≥2 distinct properties). The buyer\u2019s four given observations are seeded as explicit feedback. Manual multipliers always override learned ones.</p>'
+    +'<div class="kv">'+rows+'</div>'
+    +'<div style="display:flex;gap:10px;margin-top:14px"><button class="act primary" onclick="fyResetEdits()">Reset to learned</button>'
+    +'<button class="act" onclick="closeModal()">Done</button></div></div>');
+}
+function fySetEdit(k,v){const e=fyEdits();const n=+v;if(!Number.isFinite(n)||n<=0.1||n>3){delete e[k];}else{e[k]=Math.round(n*100)/100;}fySaveEdits(e);delete FY.SIG;fetchPersonal(true);toast('Preference multiplier ×'+(e[k]||'reset')+' applied');}
+function fyResetEdits(){fySaveEdits({});delete FY.SIG;fetchPersonal(true);closeModal();toast('For You preferences reset to learned weights');}
+function openShell(html){
+  document.getElementById('modalPanel').innerHTML='<button class="mclose" onclick="closeModal()" aria-label="Close group view">✕</button>'+html;
+  document.getElementById('modal').style.display='flex';
+  const c=document.getElementById('modalPanel').querySelector('.mclose');if(c)c.focus();
 }
 
 /* ---------------- render ---------------- */
@@ -601,6 +850,8 @@ function render(onDone){
     b.classList.toggle('zero',counts[q]===0);
   });
   document.querySelectorAll('.profile-tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.profile===ui.profile)));
+  document.querySelectorAll('.fy-opt').forEach(o=>{o.hidden=ui.profile!=='foryou';});
+  if(ui.profile!=='foryou'&&/^foryou_/.test(ui.sort||'')){ui.sort='score';document.getElementById('sort').value='score';}
   document.getElementById('searchClear').style.display=ui.search?'':'none';
   // active filter chips
   const chips=[];
@@ -685,8 +936,8 @@ function render(onDone){
   window.__renderMs=Math.round(performance.now()-t0);
   if(typeof onDone==='function')onDone();
 }
-const PROFILE_LABELS={A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed'};
-const PROFILE_SHORT={A_investment_1br:'Profile A',B_residence_2br:'Profile B',C_piraeus_univ_1br:'Profile C'};
+const PROFILE_LABELS={foryou:'For You — personal fit × affordability',A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed'};
+const PROFILE_SHORT={foryou:'For You',A_investment_1br:'Profile A',B_residence_2br:'Profile B',C_piraeus_univ_1br:'Profile C'};
 const PROFMAP={A:'A_investment_1br',B:'B_residence_2br',C:'C_piraeus_univ_1br'};
 const QUICK_LABELS={newmarket:'New on market',reduced:'Price reductions',reviewed:'Reviewed'};
 function clearFilter(kind){
@@ -841,6 +1092,7 @@ function cardHtml(l,rev){
     (val?'<div class="chips">'+val+'</div>':'')+
     (conditionChips(l)?'<div class="chips">'+conditionChips(l)+'</div>':'')+
     (rv.note?'<div class="card-note">Note: '+esc(rv.note)+'</div>':'')+
+    fyStrip(l)+
     '<div class="card-actions">'+
       '<button class="act star'+(rv.state==='shortlist'?' on':'')+'" aria-pressed="'+(rv.state==='shortlist')+'" onclick="setReview(\''+esc(l.id)+'\',\'shortlist\')" title="Shortlist'+actNote+'" aria-label="Shortlist this listing'+actNote+'">★<span>Shortlist</span></button>'+
       '<button class="act" onclick="copyListing(\''+esc(l.id)+'\')" title="Copy this listing\'s ID (the tracker house id — paste it into the ID search)" aria-label="Copy listing ID">⧉<span>Copy ID</span></button>'+
@@ -849,6 +1101,7 @@ function cardHtml(l,rev){
       '<button class="act" onclick="addNote(\''+esc(l.id)+'\')" title="Add or edit a personal note" aria-label="Add a personal note"><span>Note</span></button>'+
       '<button class="act primary" onclick="openModal(\''+esc(l.id)+'\')" aria-label="Open full details for this listing">Details</button>'+
     '</div>'+
+    fyChips(l,rv)+
     '<div class="card-src">'+(l.url
       ?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">View source advertisement ↗</a>'
       :'<span class="nosrc">Snapshot card — no source link</span>')+'</div>'+
@@ -913,8 +1166,15 @@ function setReview(id,state){
   const rev=reviews();
   const cur=rev[id]||{};
   const l=(allListings.find(x=>x.id===id))||{};
-  rev[id]={state:(cur.state===state?'none':state),note:cur.note||'',at:new Date().toISOString(),snap:{price:l.price_eur,label:l.status_label||''}};
+  rev[id]={state:(cur.state===state?'none':state),note:cur.note||'',at:cur.at||new Date().toISOString(),snap:{price:l.price_eur,label:l.label||l.status_label||''}};
+  // keep only reasons that exist in the NEW state's vocabulary
+  const allowed=Object.keys(FY_REASONS[rev[id].state]||{});
+  const rs=(cur.reasons||[]).filter(k=>allowed.indexOf(k)>=0);
+  if(rs.length)rev[id].reasons=rs;
+  if(cur.reason_note&&allowed.length)rev[id].reason_note=cur.reason_note;
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
+  if(rev[id].state==='shortlist'||rev[id].state==='dismissed'){FYUI_OPEN[id]=true;}
+  delete FY.SIG;fyRefresh();
   refreshAfterReview(id);
   const after=reviews()[id]||{};
   if(after.state==='shortlist')toast('★ Shortlisted');
@@ -927,9 +1187,14 @@ function addNote(id){
   const n=prompt('Personal note:',cur.note||'');
   if(n===null)return;
   const l=(allListings.find(x=>x.id===id))||{};
-  rev[id]={state:cur.state||'none',note:n,at:new Date().toISOString(),snap:cur.snap||{price:l.price_eur}};
+  rev[id]={state:cur.state||'none',note:n,at:new Date().toISOString(),
+           snap:cur.snap||{price:l.price_eur,label:l.label||l.status_label||''},
+           reasons:cur.reasons||[],reason_note:cur.reason_note||''};
+  if(!rev[id].reasons||!rev[id].reasons.length)delete rev[id].reasons;
+  if(!rev[id].reason_note)delete rev[id].reason_note;
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
-  refreshAfterReview(id);
+  if(cur.state==='shortlist'||cur.state==='dismissed')delete FY.SIG;  // note text stays local; counts unchanged
+  fyRefresh();refreshAfterReview(id);
 }
 function refreshAfterReview(id){
   render(()=>{  // REV-012: focus after the LAST paint chunk too
@@ -1203,7 +1468,7 @@ function renderDetail(l){
     '<div class="mhead"><div class="t"><div class="price num">'+money(l.price_eur)+'</div>'+
     '<div class="sub">'+esc(city)+nbTxt+(l.score_v2!=null?' · score '+l.score_v2+' ('+esc(l.score_v2_profile||'')+ ')':'')+(conf!=null?' · '+conf+'% confidence':'')+'</div>'+gpTxt+'</div>'+
     '<button class="mclose" onclick="closeModal()" aria-label="Close details">✕</button></div>'+
-    '<div class="panel-inner">'+galHtml+ov+assess+histHtml+cmpHtml+charsHtml+adsHtml+xrefHtml+descHtml+'</div>';
+    '<div class="panel-inner">'+fySection(l.id)+galHtml+ov+assess+histHtml+cmpHtml+charsHtml+adsHtml+xrefHtml+descHtml+'</div>';
   renderGallery(photos_,0);
   document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
@@ -1257,7 +1522,34 @@ document.addEventListener('keydown',e=>{
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
   }
 });
-/* swipe support for the gallery */
+/* For You modal section: personal fit explanation + financial breakdown */
+function fySection(id){
+  const e=FY.fits&&FY.fits[id];if(!e)return'';
+  const pf=e.personal,ff=e.financial;
+  const li=arr=>(arr&&arr.length?arr.map(x=>'<li>'+esc(x)+'</li>').join(''):'<li class="dim">—</li>');
+  const scenRow=(label,s)=>'<tr><td>'+label+'</td><td class="num">'+fmtK(s&&s.low)+'</td><td class="num">'+fmtK(s&&s.expected)+'</td><td class="num">'+fmtK(s&&s.high)+'</td></tr>';
+  const mo=ff.max_affordable_offer;
+  const moTxt=mo?('max affordable offer <b>'+fmtK(mo.expected)+'</b> (range '+fmtK(mo.low)+'–'+fmtK(mo.high)+')'
+    +(ff.asking_vs_max_offer!=null?' — asking is '+fmtK(Math.abs(ff.asking_vs_max_offer))+(ff.asking_vs_max_offer>0?' above':' below')+' it':'')):'max offer requires verified condition';
+  const renoNotes=(ff.renovation.notes||[]).length?'<div class="dim" style="font-size:12.5px">'+esc(ff.renovation.notes.slice(0,2).join(' · '))+'</div>':'';
+  return '<div class="msec fy"><h3>★ For You — personal fit & affordability</h3>'
+    +'<div class="fy-head ' +fyFeasClass(ff.feasibility)+'"><span class="fy-big">Personal '+Math.round(pf.score)+'</span>'
+    +'<span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'
+    +'<span class="u">all-in '+fmtK(ff.all_in&&ff.all_in.expected)+'</span></div>'
+    +(e.seed_note?'<div class="fy-note">Your earlier feedback: “'+esc(e.seed_note)+'”</div>':'')
+    +'<div class="fy-cols"><div><b>Matters for you</b><ul>'+li(pf.positives)+'</ul></div>'
+    +'<div><b>Watch / missing</b><ul>'+li(pf.negatives.concat(pf.unknown_factors.map(u=>u+' (not stated — verify)')))+'</ul></div></div>'
+    +'<table class="fy-fin"><thead><tr><th>Cost component (€)</th><th>Low</th><th>Expected</th><th>High</th></tr></thead><tbody>'
+    +scenRow('Renovation ('+esc(ff.renovation.class)+' — '+esc((ff.renovation.scopes||[]).join(', '))+')',ff.renovation.scenarios_eur)
+    +scenRow('Acquisition expenses (transfer tax, notary, registry'+(ff.acquisition&&ff.acquisition.parts&&ff.acquisition.parts.agent_commission?', agent commission':'')+')',ff.acquisition&&ff.acquisition.scenarios_eur)
+    +scenRow('Contingency',ff.contingency)
+    +'<tr class="tot"><td>All-in total (asking '+fmtK(ff.asking_price)+')'+(ff.all_in&&ff.all_in.expected!=null&&ff.all_in.expected<=(FY.contract?FY.contract.budget:250000)?' ✓ fits':' ✗ over')+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.low)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.expected)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.high)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="fy-note">'+esc(moTxt)+'</div>'+renoNotes
+    +'<div class="disclaimer">⚠ Affordability estimate, not a market-value or seller-acceptance claim. Transfer-tax exemption eligibility and agent commission are configurable assumptions ('+(ff.assumptions_note?'see below':'financing_assumptions.json')+') — not assumed in your favor.</div>'
+    +(ff.assumptions_note?'<div class="dim" style="font-size:12px">'+esc(ff.assumptions_note)+'</div>':'')
+    +'</div>';
+}
 (function(){
   let sx=null;
   document.addEventListener('touchstart',e=>{if(document.getElementById('viewer').classList.contains('open')||(document.getElementById('modal').classList.contains('open')&&galleryState.photos.length>1))sx=e.touches[0].clientX;},{passive:true});
@@ -1272,6 +1564,7 @@ document.addEventListener('keydown',e=>{
 
 /* ---------------- menu + import/export ---------------- */
 const menuBtn=document.getElementById('menuBtn'),menuPop=document.getElementById('menuPop');
+document.getElementById('fyPrefsBtn').addEventListener('click',()=>{menuPop.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');openForYouPrefs();});
 menuBtn.addEventListener('click',()=>{
   const open=menuPop.classList.toggle('open');
   menuBtn.setAttribute('aria-expanded',String(open));
@@ -1305,6 +1598,9 @@ document.getElementById('importFile').addEventListener('change',e=>{
         if(state==='none'&&!note){skipped++;continue}
         clean[key]={state};
         if(note)clean[key].note=note;
+        if(Array.isArray(ent.reasons)){clean[key].reasons=ent.reasons.filter(k=>typeof k==='string').slice(0,8);}
+        if(!clean[key].reasons||!clean[key].reasons.length)delete clean[key].reasons;
+        if(typeof ent.reason_note==='string')clean[key].reason_note=ent.reason_note.slice(0,200);
         if(typeof ent.at==='string'&&/^\d{4}-\d{2}-\d{2}/.test(ent.at))clean[key].at=ent.at;
         if(ent.snap&&Number.isFinite(+ent.snap.price))clean[key].snap={price:+ent.snap.price};
         imported++;
@@ -1334,6 +1630,7 @@ function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify(ui))}catch(e){}
     if(st.quick)ui.quick=st.quick;
     if(st.more!=null)ui.more=st.more;
     if(st.sort)ui.sort=st.sort;
+    if(!/^(all|foryou)/.test(ui.profile)&&/^foryou_/.test(ui.sort||''))ui.sort='score';   // stale For You sort from another view
     if(st.search)ui.search=st.search;
     // migrate the legacy single-dropdown shape {filter,...}
     if(st.filter&&!st.quick){
@@ -1348,7 +1645,11 @@ function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify(ui))}catch(e){}
   // reflect state into the controls
   document.querySelectorAll('.profile-tab').forEach(b=>{
     if(b.dataset.profile===ui.profile)b.setAttribute('aria-selected','true');
-    b.addEventListener('click',()=>{ui.profile=b.dataset.profile;saveUI();render()});
+    b.addEventListener('click',()=>{
+      ui.profile=b.dataset.profile;
+      if(ui.profile==='foryou'&&!/^foryou_/.test(ui.sort||''))ui.sort='foryou_combined';
+      if(ui.profile!=='foryou'&&/^foryou_/.test(ui.sort||''))ui.sort='score';
+      saveUI();render()});
   });
   document.querySelectorAll('.qbtn').forEach(b=>{
     b.addEventListener('click',()=>{
