@@ -391,6 +391,7 @@ button{font:inherit;color:inherit}
 </div>
 <div id="viewer" role="dialog" aria-modal="true" aria-label="Enlarged photograph" onclick="if(event.target===this)closeViewer()"></div>
 
+<script src="foryou_engine.js?v1"></script>
 <script>
 let allListings=[],meta={},groupIndex={},searchStrings=new Map();
 const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
@@ -583,14 +584,11 @@ function currentList(){
        (searchStrings.get(l.id)||'').includes(search))memberHits.add(g.primary_id);
   }
   base=base.filter(l=>(searchStrings.get(l.id)||'').includes(search)||memberHits.has(l.id));
-  // For You ranks come precomputed from the deterministic engine; the engine's
-  // order replaces the generic sort (search filtering already applied above)
+  // For You ranks come precomputed by the browser engine (foryou_engine.js);
+  // the engine's order replaces the generic sort (search filtering first).
+  // With the snapshot missing/failed (FY.ranked empty) the generic sort runs.
   const fyMode=/^foryou_(\w+)/.exec(ui.sort||'');
   let order=(ui.profile==='foryou'&&fyMode&&FY.ranked)?FY.ranked[fyMode[1]]:null;
-  if(ui.profile==='foryou'&&fyMode&&fyMode[1]==='similar'){
-    const o=fySimilarOrder();
-    order=o.length?o:(FY.ranked.combined||[]);     // no favorites yet -> combined order
-  }
   if(order&&order.length){
     const rank={};order.forEach((id2,i)=>{if(rank[id2]===undefined)rank[id2]=i;});
     return base.slice().sort((a,b)=>(rank[a.id]!==undefined?rank[a.id]:1e9)-(rank[b.id]!==undefined?rank[b.id]:1e9));
@@ -622,78 +620,50 @@ function sortList(list){
   });
 }
 
-/* ---------------- For You (personalization) ---------------- */
-const FY_KEY='houseTracker.foryou.v1', FY_PREFS_KEY='houseTracker.foryouPrefs.v1';
-// the four buyer seed observations (same ids the engine holds) — their
-// properties are excluded from aggregate counts so seeds never double-count
+/* ---------------- For You (personalization) — browser engine ---------------- */
+// ARCHITECTURE (production-ready): the deterministic engine runs IN THE BROWSER
+// over a frozen, preference-independent snapshot (foryou_engine.js +
+// api/foryou.json) — no POST, no server logic needed, identical results on the
+// local server and on GitHub Pages. Reviews, notes and preference multipliers
+// NEVER leave the browser (nothing is transmitted at all).
+const FY_PREFS_KEY='houseTracker.foryouPrefs.v2';
 const FY_SEED_ADS=['1120101887','1121023524','1121033535','1120126978'];
 const FY_REASONS={
   shortlist:{light:'Excellent light',corner:'Corner',layout:'Spacious layout',floor:'Good floor level',location:'Great location',price:'Attractive price',renovation_potential:'Renovation potential',balconies:'Large balconies'},
   dismiss:{floor:'Floor too low',light:'Poor lighting',layout:'Poor layout',size:'Too small',location:'Poor location',price:'Too expensive',renovation:'Excessive renovation',condition:'Poor building condition'}
 };
 const FY_FACTOR_LABELS={floor:'Floor level',lighting:'Natural light',corner:'Corner position',outlook:'Outlook / openness',size:'Size',layout:'Layout',bedrooms:'Bedrooms',location:'Location',elevator:'Elevator',balconies:'Balconies'};
-let FY={fits:null,ranked:null,prefsMod:null,contract:null,open:{}};
+let FY={fits:null,ranked:null,prefsMod:{},payload:null,entries:{},err:null,contract:null,open:{}};
 function fyEdits(){try{const p=JSON.parse(localStorage.getItem(FY_PREFS_KEY))||{};return p.edits||{}}catch(e){return{}}}
-function fySaveEdits(edits){localStorage.setItem(FY_PREFS_KEY,JSON.stringify({version:1,edits:edits}));}
-function fyCache(){try{return JSON.parse(localStorage.getItem(FY_KEY))||null}catch(e){return null}}
-function fyCacheSave(payload){try{localStorage.setItem(FY_KEY,JSON.stringify(payload))}catch(e){}}
-function fyVotesHash(){
-  const rev=reviews();const out={};
-  for(const k of Object.keys(rev)){const r=rev[k]||{};if((r.reasons||[]).length||r.reason_note){out[k]={s:r.state,r:r.reasons||[]}}}
-  // data signature: a daily rebuild must invalidate cached fits
-  return JSON.stringify(out)+'|'+JSON.stringify(fyEdits())+'|'+(meta.active_rows||0)+'|'+(meta.enriched_at||'');
+function fySaveEdits(edits){localStorage.setItem(FY_PREFS_KEY,JSON.stringify({version:2,edits:edits}));}
+/* Load + validate the frozen snapshot; all scoring happens locally, synchronously */
+function fyValidate(p){
+  if(!p||p.version!==1||p.generated_for!=='browser-engine')return false;
+  if(!Array.isArray(p.entries)||!p.assumptions||!p.budget)return false;
+  return p.entries.every(e=>e&&typeof e.id==='string'&&Array.isArray(e.factors));
 }
-let FY_SIG=null;
-function fySignals(){
-  // PRIVACY CONTRACT: only numeric per-reason counts of DISTINCT properties
-  // leave the browser. Property ids/states/notes never do. The client does the
-  // property collapse (group ids available locally) and subtracts the seed
-  // properties so server seeds + user counts never double-count one property.
-  const rev=reviews();const counts={shortlist:{},dismiss:{}};const seen={};
-  const seedProp={};
-  for(const adid of FY_SEED_ADS){
-    const l=(allListings.find(x=>x.id===adid))||{};
-    const gid=l.group&&l.group.property_id;
-    if(gid)seedProp[gid]=1;
-  }
-  for(const adid of Object.keys(rev)){
-    const rv=rev[adid]||{};const rs=rv.reasons||[];
-    if(!rs.length)continue;
-    const l=(allListings.find(x=>x.id===adid))||{};
-    const pid=(l.group&&l.group.property_id)||adid;
-    if(seedProp[pid])continue;
-    const state=rv.state==='shortlist'?'shortlist':(rv.state==='dismissed'?'dismiss':null);
-    if(!state)continue;
-    const k=state+'|'+pid;
-    if(seen[k])continue;seen[k]=1;
-    for(const r of rs){counts[state][r]=(counts[state][r]||0)+1;}
-  }
-  return {vote_counts:counts};
+function fyBoot(force){
+  if(!force&&FY.payload&&FY.fits)return;
+  FY.err='loading';FY.fits=FY.fits||{};FY.ranked=FY.ranked||{};
+  fetch('api/foryou.json').then(r=>{if(!r.ok)throw new Error(String(r.status));return r.json();})
+  .then(p=>{
+    if(!fyValidate(p))throw new Error('invalid payload');
+    FY.payload=p;FY.entries={};p.entries.forEach(e=>{FY.entries[e.id]=e;});
+    FY.err=null;fyRecompute();render();
+  })
+  .catch(()=>{FY.err='offline';FY.fits={};FY.ranked={};if(ui.profile==='foryou')render();});
 }
-let FYT=null;
-function fetchPersonal(force){
-  if(FY.loading)return;
-  const sig=fyVotesHash();
-  if(!force&&FY.SIG===sig&&FY.fits)return render();
-  FY.SIG=sig;
-  FY.loading=true;
-  fetch('/api/personal',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({signals:{vote_counts:(fySignals()||{}).vote_counts||{}},prefs:{edits:fyEdits()}})})
-  .then(r=>r.json()).then(p=>{
-    FY.fits=p.fits||{};FY.ranked=p.ranked||{};FY.prefsMod=p.prefs_effective||{};
-    FY.contract=p.personal_contract||null;FY.assumptions=p.assumptions||null;
-    fyCacheSave({sig:sig,payload:{fits:FY.fits,ranked:FY.ranked,prefsMod:FY.prefsMod,contract:FY.contract,assumptions:FY.assumptions}});
-    FY.loading=false;
-    render();
-  }).catch(()=>{FY.loading=false;render();});
+function fyRecompute(){
+  const E=window.ForYouEngine;
+  if(!E||!FY.payload){FY.err=FY.err||'offline';return;}
+  try{
+    const out=E.computeAll(reviews(),fyEdits(),Object.keys(FY.entries).map(k=>FY.entries[k]),FY.payload);
+    FY.fits=out.fits||{};FY.ranked=out.ranked||{};FY.prefsMod=out.prefs_mods||{};FY.err=null;
+  }catch(e){console.error('For You engine error',e);FY.err='engine';FY.fits={};FY.ranked={};}
+  // fast, synchronous: chips/pref edits recompute instantly (no network)
 }
-function fyBoot(){
-  const c=fyCache();const sig=fyVotesHash();
-  if(c&&c.sig===sig&&c.payload){FY.fits=c.payload.fits;FY.ranked=c.payload.ranked;FY.prefsMod=c.payload.prefsMod;FY.contract=c.payload.contract;FY.assumptions=c.payload.assumptions;FY.SIG=sig;}
-  else fetchPersonal(true);
-}
-let FYTIMER=null;
-function fyRefresh(){clearTimeout(FYTIMER);FYTIMER=setTimeout(()=>fetchPersonal(true),800);}
+function fyRefresh(){fyRecompute();render();}
+function fyRetry(){FY.err=null;fyBoot(true);}
 function fmtK(v){return v==null?'—':('€'+Math.round(v).toLocaleString('el-GR'))}
 function fyFeasClass(f){return f==='within_budget'?'fy-ok':(f==='potentially_within_budget_after_negotiation'?'fy-mid':(f==='over_budget'?'fy-bad':'fy-unknown'))}
 function fyFeasLabel(f){return f==='within_budget'?'Within budget':(f==='potentially_within_budget_after_negotiation'?'Potentially in budget after negotiation':(f==='over_budget'?'Over budget':(f==='insufficient_information'?'Insufficient information':'—')))}
@@ -705,51 +675,6 @@ function fyStrip(l){
   return '<div class="fy-strip '+fyFeasClass(ff.feasibility)+'" title="Personal fit vs €250k all-in budget (purchase + acquisition + renovation + contingency)">'
     +'<b>Personal '+Math.round(pf.score)+'</b><span class="u">·</span>All-in '+fmtK(ff.all_in&&ff.all_in.expected)
     +'<span class="u">·</span><span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'+mo+'</div>';
-}
-/* 'Similar to my favorites' — computed CLIENT-SIDE (no favorites leave the
-   browser): signature = strong positive/negative personal-fit factors
-   (quality >=0.7 / <=0.35), favorites = seed observations + every shortlisted
-   property (state only — chips/notes not required), one signature per
-   PROPERTY. Same formula as the engine reference implementation. */
-function fySigFrom(pf){
-  const pos=new Set(),neg=new Set();
-  for(const f of pf.factors||[]){
-    const q=f.quality;
-    if(q==null)continue;
-    if(q>=0.7)pos.add(f.key);else if(q<=0.35)neg.add(f.key);
-  }
-  return {pos:pos,neg:neg};
-}
-function fySimilarOrder(){
-  const rev=reviews();
-  const favAds=FY_SEED_ADS.slice();
-  for(const adid of Object.keys(rev)){
-    if((rev[adid]||{}).state==='shortlist'&&favAds.indexOf(adid)<0)favAds.push(adid);
-  }
-  const seenP={};const favSig={pos:new Set(),neg:new Set()};let any=false;
-  for(const fid of favAds){
-    const e=FY.fits&&FY.fits[fid];if(!e)continue;
-    const l=(allListings.find(x=>x.id===fid))||{};
-    const pid=(l.group&&l.group.property_id)||fid;
-    if(seenP[pid])continue;seenP[pid]=1;
-    const s=fySigFrom(e.personal);
-    s.pos.forEach(k=>favSig.pos.add(k));
-    s.neg.forEach(k=>favSig.neg.add(k));
-    any=true;
-  }
-  if(!any||(!favSig.pos.size&&!favSig.neg.size))return [];
-  const denom=favSig.pos.size+0.5*favSig.neg.size;
-  const out=[];
-  for(const id of Object.keys(FY.fits||{})){
-    const e=FY.fits[id];const s=fySigFrom(e.personal);
-    let cnt=0,cntN=0;
-    s.pos.forEach(k=>{if(favSig.pos.has(k))cnt++;});
-    s.neg.forEach(k=>{if(favSig.neg.has(k))cntN++;});
-    const sim=Math.min(1,(cnt+0.5*cntN)/denom)*100;
-    out.push({id:id,sim:Math.round(sim*10)/10,ps:(e.personal||{}).score||0});
-  }
-  out.sort((a,b)=>b.sim-a.sim||b.ps-a.ps);
-  return out.map(x=>x.id);
 }
 function setReviewReason(id,key){
   const rev=reviews();const cur=rev[id]||{};
@@ -763,7 +688,7 @@ function setReviewReason(id,key){
            snap:cur.snap||{price:''},reasons:rs,reason_note:cur.reason_note||''};
   if(!rs.length)delete rev[id].reasons;
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
-  delete FY.SIG;fyRefresh();
+  fyRefresh();
   refreshAfterReview(id);
   toast('Preference saved — For You ranking updated');
 }
@@ -778,7 +703,7 @@ function setReviewOtherNote(id){
   if(!rev[id].reasons.length)delete rev[id].reasons;
   if(!rev[id].reason_note)delete rev[id].reason_note;
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
-  delete FY.SIG;fyRefresh();refreshAfterReview(id);
+  fyRefresh();refreshAfterReview(id);
 }
 function fyChips(l,rv){
   const state=rv.state==='shortlist'?'shortlist':(rv.state==='dismissed'?'dismissed':null);
@@ -811,11 +736,18 @@ function openForYouPrefs(){
     +'<div style="display:flex;gap:10px;margin-top:14px"><button class="act primary" onclick="fyResetEdits()">Reset to learned</button>'
     +'<button class="act" onclick="closeModal()">Done</button></div></div>');
 }
-function fySetEdit(k,v){const e=fyEdits();const n=+v;if(!Number.isFinite(n)||n<=0.1||n>3){delete e[k];}else{e[k]=Math.round(n*100)/100;}fySaveEdits(e);delete FY.SIG;fetchPersonal(true);toast('Preference multiplier ×'+(e[k]||'reset')+' applied');}
-function fyResetEdits(){fySaveEdits({});delete FY.SIG;fetchPersonal(true);closeModal();toast('For You preferences reset to learned weights');}
+function fySetEdit(k,v){const e=fyEdits();const n=+v;if(!Number.isFinite(n)||n<=0.1||n>3){delete e[k];}else{e[k]=Math.round(n*100)/100;}fySaveEdits(e);fyRefresh();toast('Preference multiplier ×'+(e[k]||'reset')+' applied');}
+function fyResetEdits(){fySaveEdits({});fyRefresh();closeModal();toast('For You preferences reset to learned weights');}
 function openShell(html){
-  document.getElementById('modalPanel').innerHTML='<button class="mclose" onclick="closeModal()" aria-label="Close group view">✕</button>'+html;
-  document.getElementById('modal').style.display='flex';
+  // Use the SAME lifecycle as openModal (P0 fix): the .open class drives
+  // display; an inline display:flex here once bypassed closeModal()'s
+  // class-removal and left an invisible blocking overlay behind.
+  lastFocused=document.activeElement||lastFocused;
+  document.getElementById('modalPanel').innerHTML='<button class="mclose" onclick="closeModal()" aria-label="Close">✕</button>'+html;
+  const m=document.getElementById('modal');
+  m.style.display='';           // clear any legacy inline display
+  m.classList.add('open');
+  document.body.style.overflow='hidden';
   const c=document.getElementById('modalPanel').querySelector('.mclose');if(c)c.focus();
 }
 
@@ -883,6 +815,18 @@ function render(onDone){
   }else{
     html=list.map(l=>cardHtml(l,rev)).join('');
   }
+  // For You banner: loading / failed snapshot with explicit retry (P1 states)
+  let fyBanner='';
+  if(ui.profile==='foryou'&&FY.err){
+    fyBanner='<div class="empty fy-error" role="status" style="margin:0 0 14px">'
+      +(FY.err==='loading'?'⏳ Loading For You data…':FY.err==='engine'
+        ?'⚠ The For You engine failed to compute — no estimates are shown. Check the console.'
+        :'⚠ For You data unavailable (offline or snapshot missing). All other views keep working.')
+      +(FY.err==='loading'?''
+        :'<div style="margin-top:10px"><button class="act primary" onclick="fyRetry()">↻ Retry</button></div>')
+      +'</div>';
+  }
+  html=fyBanner+html;
   // secondary view: rows DISCOVERED via this profile's search that computed
   // eligibility does not qualify — kept discoverable for manual review
   if(ui.profile!=='all'){
@@ -1174,7 +1118,7 @@ function setReview(id,state){
   if(cur.reason_note&&allowed.length)rev[id].reason_note=cur.reason_note;
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
   if(rev[id].state==='shortlist'||rev[id].state==='dismissed'){FYUI_OPEN[id]=true;}
-  delete FY.SIG;fyRefresh();
+  fyRefresh();
   refreshAfterReview(id);
   const after=reviews()[id]||{};
   if(after.state==='shortlist')toast('★ Shortlisted');
@@ -1193,8 +1137,7 @@ function addNote(id){
   if(!rev[id].reasons||!rev[id].reasons.length)delete rev[id].reasons;
   if(!rev[id].reason_note)delete rev[id].reason_note;
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
-  if(cur.state==='shortlist'||cur.state==='dismissed')delete FY.SIG;  // note text stays local; counts unchanged
-  fyRefresh();refreshAfterReview(id);
+  fyRefresh();refreshAfterReview(id);   // note text stays local; counts unchanged
 }
 function refreshAfterReview(id){
   render(()=>{  // REV-012: focus after the LAST paint chunk too
@@ -1330,7 +1273,7 @@ function renderDetail(l){
   const ppsEff=(effVal&&l.size_sqm>0)?Math.round(effVal/l.size_sqm):null;
   const ov='<div class="msec"><h3>Overview</h3><div class="kv">'+
     cell('Asking price','<span class="num">'+money(l.price_eur)+'</span>'+(mv.previous?' <span style="text-decoration:line-through;color:var(--muted2)" class="num">'+money(mv.previous)+'</span>':'')+(mvChip?'<div style="margin-top:4px">'+mvChip+'</div>':''))+
-    (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the '+(g.level==='confirmed'?'confirmed':'likely-grouped')+' ads'):'' )+
+    (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the '+((l.group&&l.group.level)==='confirmed'?'confirmed':'likely-grouped')+' ads'):'' )+
     cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):(loc.evidence||''))+
     cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',(ppsEff?'asking <span class="num">'+ppsVal+' €/m²</span> · ranks at <span class="num">'+ppsEff+' €/m²</span> (lowest active ask)':(ppsVal?'<span class="num">'+ppsVal+' €/m²</span>':'')))+
     cell('Bedrooms / floor',(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—'))+
@@ -1524,13 +1467,14 @@ document.addEventListener('keydown',e=>{
 });
 /* For You modal section: personal fit explanation + financial breakdown */
 function fySection(id){
+  const ent=(FY.entries||{})[id]||{};
   const e=FY.fits&&FY.fits[id];if(!e)return'';
   const pf=e.personal,ff=e.financial;
   const li=arr=>(arr&&arr.length?arr.map(x=>'<li>'+esc(x)+'</li>').join(''):'<li class="dim">—</li>');
   const scenRow=(label,s)=>'<tr><td>'+label+'</td><td class="num">'+fmtK(s&&s.low)+'</td><td class="num">'+fmtK(s&&s.expected)+'</td><td class="num">'+fmtK(s&&s.high)+'</td></tr>';
   const mo=ff.max_affordable_offer;
   const moTxt=mo?('max affordable offer <b>'+fmtK(mo.expected)+'</b> (range '+fmtK(mo.low)+'–'+fmtK(mo.high)+')'
-    +(ff.asking_vs_max_offer!=null?' — asking is '+fmtK(Math.abs(ff.asking_vs_max_offer))+(ff.asking_vs_max_offer>0?' above':' below')+' it':'')):'max offer requires verified condition';
+    +(ff.asking_vs_max_offer!=null?' — asking is '+fmtK(Math.abs(ff.asking_vs_max_offer))+(ff.asking_vs_max_offer>0?' above':' below')+' its midpoint':'')):'max offer requires verified condition';
   const renoNotes=(ff.renovation.notes||[]).length?'<div class="dim" style="font-size:12.5px">'+esc(ff.renovation.notes.slice(0,2).join(' · '))+'</div>':'';
   return '<div class="msec fy"><h3>★ For You — personal fit & affordability</h3>'
     +'<div class="fy-head ' +fyFeasClass(ff.feasibility)+'"><span class="fy-big">Personal '+Math.round(pf.score)+'</span>'
@@ -1547,6 +1491,17 @@ function fySection(id){
     +'</tbody></table>'
     +'<div class="fy-note">'+esc(moTxt)+'</div>'+renoNotes
     +'<div class="disclaimer">⚠ Affordability estimate, not a market-value or seller-acceptance claim. Transfer-tax exemption eligibility and agent commission are configurable assumptions ('+(ff.assumptions_note?'see below':'financing_assumptions.json')+') — not assumed in your favor.</div>'
+    +'<div class="dim" style="font-size:12px">Pricing basis: '
+    +(ent.price_label==='group-confirmed'
+      ?'shared group price — CONFIRMED same property.'
+      :(ent.price_label==='group-likely'
+        ?'financial fit prices on THIS ad’s own ask; the LIKELY group’s shared low ('+fmtK((ent.prices_all||[]).length?Math.min.apply(null,ent.prices_all):null)+') is a provisional hypothesis shown for context only.'
+        :'this advertisement’s own asking price — no unverified duplicate relationship is involved.'))
+    +'</div>'
+    +(e.similar&&(e.similar.sim!=null||e.similar.matched.length)
+      ?('<div class="dim" style="font-size:12px">Similar to your favorites: '+Math.round(e.similar.sim||0)+'/100'
+        +(e.similar.matched.length?' — matches: '+esc(e.similar.matched.join(', ')):'')
+        +(e.similar.penalties.length?' — discounted for: '+esc(e.similar.penalties.join(', ')):'')+'</div>'):'' )
     +(ff.assumptions_note?'<div class="dim" style="font-size:12px">'+esc(ff.assumptions_note)+'</div>':'')
     +'</div>';
 }
@@ -1573,8 +1528,9 @@ document.addEventListener('click',e=>{if(!menuPop.contains(e.target)&&!menuBtn.c
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menuPop.classList.contains('open')){menuPop.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');menuBtn.focus()}});
 document.getElementById('refreshBtn').addEventListener('click',()=>{menuPop.classList.remove('open');loadAll();toast('↻ Page data reloaded (no new collection)')});
 document.getElementById('exportBtn').addEventListener('click',()=>{
-  const blob=new Blob([JSON.stringify({format:'house-tracker-reviews-v1',exported:new Date().toISOString(),reviews:reviews()},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='house-tracker-reviews.json';a.click();
+  const fy=JSON.parse(localStorage.getItem(FY_PREFS_KEY)||'null');
+  const blob=new Blob([JSON.stringify({format:'house-tracker-for-you-v2',exported:new Date().toISOString(),reviews:reviews(),fy_prefs:(fy&&fy.version===2)?{edits:fy.edits||{}}:null},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='house-tracker-for-you.json';a.click();
   URL.revokeObjectURL(a.href);
 });
 document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFile').click());
@@ -1586,6 +1542,17 @@ document.getElementById('importFile').addEventListener('change',e=>{
       const parsed=JSON.parse(rd.result);
       const incoming=(parsed&&parsed.reviews)?parsed.reviews:parsed;
       if(typeof incoming!=='object'||incoming===null||Array.isArray(incoming))throw new Error('unexpected file format');
+      // For You v2 payloads may carry manual preference multipliers — validated
+      // and merged WITHOUT touching existing reviews/notes (P1 persistence)
+      if(parsed&&parsed.fy_prefs&&parsed.fy_prefs.edits&&typeof parsed.fy_prefs.edits==='object'){
+        const ve={};let bad=0;
+        for(const k of Object.keys(parsed.fy_prefs.edits)){
+          const v=+parsed.fy_prefs.edits[k];
+          if(Number.isFinite(v)&&v>0.1&&v<=3&&FY_FACTOR_LABELS[k])ve[k]=Math.round(v*100)/100;else bad++;
+        }
+        if(Object.keys(ve).length){fySaveEdits(ve);toast('Preference multipliers imported');}
+        else if(bad)toast('Preference multipliers in the file were invalid — ignored');
+      }
       const VALID_STATES=['shortlist','reviewed','dismissed','none'];
       const ID_RE=/^[A-Za-z0-9_.\-]{3,64}$/;
       const clean={};let imported=0,skipped=0;
