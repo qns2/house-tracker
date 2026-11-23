@@ -1,150 +1,378 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>House Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>House Tracker — property research</title>
 <style>
-:root{--bg:#151524;--card:#1e1e30;--accent:#7f8ff4;--good:#4fd08a;--bad:#e4796b;--warn:#e0b45c;--muted:#9aa0b5;--muted2:#6d7389;--border:#2c2c44;--text:#e8eaf6}
+:root{
+  --bg:#14141f;--surface:#1b1b2c;--surface2:#222238;--surface3:#262640;
+  --border:#2b2b46;--border2:#3a3a5c;
+  --text:#e9ebf5;--text2:#c9cfe6;--muted:#a8afcc;--muted2:#8d94b5;
+  --accent:#8b9dff;--accent2:#aab6ff;--good:#57d193;--bad:#f08a7c;--warn:#e6bd6d;
+  --chip:#232340;--focus:2px solid var(--accent);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-a{color:#9fb0ff}
-header{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#181828;position:sticky;top:0;z-index:5}
-header h1{font-size:19px;margin:0 8px 0 0;font-weight:600}
-.fresh{font-size:12.5px;color:var(--muted);line-height:1.35}
-.fresh b{color:#c6cbe0}
-.btn{background:#26263d;color:#dfe3ff;border:1px solid #3a3a58;border-radius:9px;padding:8px 14px;font-size:13.5px}
-.btn:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,.mini-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.controls{padding:10px 18px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.controls select,.controls input[type=search]{background:#20203a;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13.5px}
-.controls input[type=search]{min-width:220px}
-#summary{font-size:12.5px;color:var(--muted);margin-left:auto}
-#listings{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:16px 18px 40px;grid-auto-rows:min-content}
-@media(max-width:900px) and (min-width:641px){#listings{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
-@media(max-width:640px){#listings{grid-template-columns:1fr;padding:10px}header{padding:10px}.controls{padding:8px 10px}.controls input[type=search]{min-width:0;flex:1 1 140px}}
-.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.card.top{border-color:#4d4d7a}
-.card.removed{opacity:.55}
-.card-img{position:relative;height:150px;background:#101020;display:flex;align-items:center;justify-content:center}
-.card-img img{width:100%;height:100%;object-fit:cover;decoding:async}
-.no-photo{color:var(--muted2);font-size:12px}
-.badges{position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap;max-width:92%}
-.card-badge{font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:3px 8px;border-radius:7px;background:#000000b0}
-.badge-newmarket{color:#9ff0c5}.badge-newdisc{color:#c4a9ff}.badge-updated{color:#ffd58e}.badge-removed{color:#ff9d94}.badge-review{color:#a8d8ff}
-.card-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px}
-.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-.card-price{font-size:21px;font-weight:700}
-.card-price .grp-vals{display:block;font-size:13px;font-weight:600;color:#d5d9f5}
-.mv-down{color:var(--good)}.mv-up{color:var(--bad)}.mv-flat{color:var(--muted)}
-.old-price{font-size:13px;color:var(--muted2);text-decoration:line-through}
-.score-chip{font-size:12px;background:#262640;border-radius:8px;padding:4px 8px;text-align:right;line-height:1.25}
-.score-chip .s{font-weight:700;font-size:15px;color:#cdd3ff}
-.score-chip .c{color:var(--muted)}
-.card-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--muted)}
-.card-area{font-size:13px}
-.card-area .act{color:#c9cff2;font-weight:600}
-.card-area .mut{color:var(--muted2);text-decoration:line-through}
-.loc-warn{color:var(--warn);font-size:11.5px}
-.card-desc{font-size:12.5px;color:#b9bfd8;max-height:37px;overflow:hidden;line-height:1.32}
-.cons{font-size:12px;display:flex;flex-wrap:wrap;gap:4px}
-.cons span{background:#20203a;border-radius:6px;padding:2px 8px;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cons .pro{color:#9ff0c5}.cons .con{color:#ffb0a6}
-.card-tags{display:flex;flex-wrap:wrap;gap:5px}
-.tag{font-size:11px;border-radius:6px;padding:2.5px 8px;background:#232347;color:#aab2d5}
-.tag.yes{color:#9ff0c5}.tag.no{color:#c9a0ff}.tag.mid{color:#ffd58e}
-.grp-chip{font-size:11.5px;color:var(--warn);background:#2b2536;border-radius:6px;padding:3px 8px;border:none}
-.grp-chip.pos{color:#9aa0b5}
-.val-chip{font-size:11.5px;color:var(--muted)}
-.card-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:2px}
-.mini-btn{font-size:15px;background:#23233c;border:1px solid #3a3a58;border-radius:8px;padding:6px 10px;min-width:44px;min-height:36px;text-align:center;color:#dfe3ff}
-.mini-btn.on{border-color:var(--accent);color:#fff;background:#2b2b52}
-.rev-note{font-size:11.5px;color:var(--warn)}
-.card-foot{margin-top:auto}
-.card-foot a{font-size:13px;text-decoration:none}
-.empty{padding:30px;color:var(--muted);grid-column:1/-1;text-align:center}
-#modal{position:fixed;inset:0;background:#000000b8;display:none;align-items:flex-start;justify-content:center;z-index:50;padding:24px 12px;overflow:auto}
-#modal.open{display:flex}
-#modal .panel{background:#1c1c2e;border:1px solid var(--border);border-radius:14px;max-width:780px;width:100%;padding:20px 22px;max-height:calc(100vh - 40px);overflow:auto}
-#modal h2{margin:0 0 2px;font-size:20px}
-#modal h3{margin:16px 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-#modal .close{float:right;font-size:22px;background:none;border:none;color:var(--muted);min-width:44px;min-height:40px}
-#modal table{border-collapse:collapse;width:100%;font-size:13px}
-#modal td{padding:4px 8px;border-bottom:1px solid #2a2a42;vertical-align:top;overflow-wrap:anywhere}
-#modal td.v{color:#cdd3ff;font-weight:600}
-#modal .ev{color:var(--muted2);font-size:11.5px}
-#modal .ph a{display:inline-block;margin:3px 8px 3px 0;font-size:13px}
-#modal .frow td{border-bottom:none;padding:2.5px 8px}
-#modal .adrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #2a2a42;font-size:13px}
-#modal .adrow .sp{color:var(--muted)}
-#modal .histrow{display:flex;flex-wrap:wrap;gap:10px;padding:5px 0;border-bottom:1px solid #2a2a42;font-size:13px;align-items:baseline}
-#modal .histrow .d{color:var(--muted);min-width:96px}
-#modal .histrow .p{font-weight:600;color:#cdd3ff}
-#modal .histrow .c{font-size:12px}
-.fmissing{color:var(--muted2)}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;scrollbar-width:thin;scrollbar-color:#33334f var(--bg)}
+a{color:var(--accent2)}
+button{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:var(--focus);outline-offset:2px;border-radius:4px}
+.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#10101c;padding:10px 16px;z-index:100;border-radius:0 0 8px 0;font-weight:600}
+.skip:focus{left:0}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- header ---------- */
+.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
+.topbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;white-space:nowrap}
+.brand-mark{display:inline-flex;align-items:center;gap:8px}
+.brand-dot{width:10px;height:10px;border-radius:3px;background:var(--accent);flex:none}
+.top-meta{font-size:12.5px;color:var(--muted);line-height:1.4;min-width:0}
+.top-meta b{color:var(--text2);font-weight:600}
+.top-spacer{flex:1}
+.top-actions{display:flex;gap:8px;align-items:center}
+.iconbtn{background:var(--surface2);border:1px solid var(--border2);border-radius:9px;min-width:44px;min-height:40px;padding:6px 12px;font-size:13.5px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.iconbtn:hover{background:var(--surface3)}
+.shortcut-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:999px;padding:6px 14px;min-height:36px;font-size:13.5px;color:var(--text2);cursor:pointer;white-space:nowrap}
+.shortcut-chip .n{background:var(--accent);color:#10101c;font-size:11.5px;font-weight:700;border-radius:999px;padding:0 6px;min-width:18px;text-align:center}
+
+/* ---------- profile tabs ---------- */
+.profiles{display:flex;gap:8px;padding:10px 16px 0 16px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-right:28px}
+.profiles::-webkit-scrollbar{display:none}
+.profile-tab{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;min-height:42px;display:inline-flex;align-items:center;gap:8px}
+.profile-tab small{font-weight:400;color:var(--muted2);font-size:12px}
+.profile-tab[aria-selected=true]{background:var(--surface3);color:#fff;border-color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.profile-tab:hover{color:var(--text)}
+
+/* ---------- toolbar ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;position:sticky;top:59px;background:var(--bg);z-index:30;border-bottom:1px solid var(--border)}
+.quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1 1 auto;min-width:0;padding-right:28px}
+.quick::-webkit-scrollbar{display:none}
+.qbtn{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;min-height:38px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.qbtn .n{font-size:11.5px;color:var(--muted2);font-weight:400}
+.qbtn[aria-pressed=true]{background:var(--surface3);color:#fff;border-color:var(--accent)}
+.qbtn:hover{color:var(--text)}
+.qbtn.zero{opacity:.55}
+.sortwrap{display:flex;align-items:center;gap:6px}
+.pair{display:inline-flex;align-items:center;gap:6px}
+.toolbar select{background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:9px;padding:8px 10px;font-size:13.5px;min-height:40px}
+.toolbar label{font-size:12.5px;color:var(--muted2);white-space:nowrap}
+.searchwrap{position:relative;flex:1 1 200px;max-width:340px;min-width:160px}
+.searchwrap input{width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:10px;padding:9px 34px 9px 12px;font-size:14px;min-height:40px}
+.searchwrap input::placeholder{color:var(--muted)}
+.search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:16px;min-width:36px;min-height:36px;cursor:pointer;border-radius:8px}
+.search-clear:hover{color:var(--text)}
+.active-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;font-size:12.5px;color:var(--muted2);min-height:20px}
+.fchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:999px;padding:4px 10px;font-size:12.5px}
+.fchip button{background:none;border:none;color:var(--muted);cursor:pointer;min-width:24px;min-height:24px;padding:0 4px;font-size:14px;border-radius:6px}
+.fchip button:hover{color:#fff}
+.reset-link{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12.5px;min-height:24px;padding:4px 8px;border-radius:6px}
+
+/* ---------- summary + live region ---------- */
+.resultbar{display:flex;flex-wrap:wrap;gap:4px 16px;padding:8px 16px 2px;font-size:13px;color:var(--muted)}
+.resultbar b{color:var(--text2)}
+
+/* ---------- cards ---------- */
+#listings{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:14px 16px 60px;grid-auto-rows:min-content}
+@media(max-width:700px){#listings{grid-template-columns:1fr;padding:10px 10px 80px}}
+.card{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .15s}
+.card:hover{border-color:var(--border2)}
+.card.top{border-color:#4d5490}
+.card.dismissed{opacity:.62}
+.card-photo{position:relative;aspect-ratio:16/9;max-height:158px;background:#101018;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.no-photo{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:12.5px;padding:6px}
+.no-photo svg{opacity:.45;width:28px;height:28px}
+.card-photo.nophoto{height:88px;aspect-ratio:auto;max-height:none}
+.photo-badge{position:absolute;top:8px;left:8px;display:flex;gap:6px}
+.pbadge{font-size:12px;font-weight:700;letter-spacing:.3px;padding:4px 9px;border-radius:7px;background:#0c0c16e0;backdrop-filter:blur(4px)}
+.pbadge.new{color:#9ff0c5}.pbadge.newdisc{color:#c4b2ff}.pbadge.updated{color:#ffd58e}.pbadge.removed{color:#ff9d94}
+.rev-ribbon{position:absolute;top:8px;right:8px;font-size:12px;font-weight:700;padding:4px 9px;border-radius:7px;background:#0c0c16e0}
+.rev-ribbon.shortlist{color:#ffe08a}.rev-ribbon.reviewed{color:#9fe3ff}.rev-ribbon.dismissed{color:#ff9d94}
+.card-body{display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;flex:1}
+.price-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.price{font-size:24px;font-weight:700;white-space:nowrap;letter-spacing:-.3px}
+.price-sub{font-size:12.5px;color:var(--muted);margin-top:2px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.price-sub .was{text-decoration:line-through;color:var(--muted2)}
+.mv-chip{font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:7px;white-space:nowrap;display:inline-block}
+.mv-down{background:#12331f;color:#9ff0c5}.mv-up{background:#3a1f1e;color:#ffb0a6}
+.score-block{text-align:right;flex:none;min-width:76px}
+.score-num{font-size:21px;font-weight:700;color:#cfd6ff;line-height:1}
+.score-lbl{font-size:11.5px;color:var(--muted2)}
+.score-prof{font-size:12px;color:var(--accent2);font-weight:600;margin-top:2px}
+.conf-bar{margin-top:5px;width:76px;height:6px;border-radius:3px;background:#3d3d5e;overflow:hidden}
+.conf-bar i{display:block;height:100%;background:var(--accent)}
+.conf-lbl{font-size:11.5px;color:var(--muted2);margin-top:3px}
+.loc-line{font-size:14px;font-weight:600;color:var(--text2);line-height:1.35}
+.loc-line .mut{font-weight:400;color:var(--muted);font-size:12.5px}
+.loc-warn{color:var(--warn);font-size:12.5px;font-weight:500}
+.essentials{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;color:var(--text2)}
+.essentials span{white-space:nowrap}
+.essentials .u{color:var(--muted2);font-size:12px;margin-right:2px}
+.why{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.why .pro{color:#9ff0c5}.why .con{color:#ffc4bc}
+.grp-box{border:1px solid var(--border2);background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.grp-box b{font-size:13.5px}
+.grp-box .note{color:var(--muted2);font-size:12px;width:100%}
+.possible-chip{border:1px solid var(--border2);background:var(--surface2);border-radius:10px;padding:8px 12px;font-size:12.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;border-radius:8px;padding:4px 10px;background:var(--surface2);border:1px solid transparent;color:var(--text2)}
+.chip.yes{color:#9ff0c5;background:#16301f}.chip.no{color:#e0b9ff;background:#2e2144}.chip.mid{color:#ffd58e;background:#3a3018}.chip.mut{color:var(--muted)}
+.card-note{font-size:12.5px;color:var(--warn);background:#2b2513;border-radius:8px;padding:6px 10px}
+.card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.act{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 12px;min-height:40px;font-size:13px;cursor:pointer;color:var(--text2)}
+.act:hover{background:var(--surface3)}
+.act[aria-pressed=true]{border-color:var(--accent);color:#fff;background:#26264a}
+.act.star[aria-pressed=true]{border-color:var(--warn);color:#ffe08a;background:#332b12}
+.act.primary{background:var(--accent);color:#10101c;font-weight:700;border-color:transparent}
+.act.primary:hover{background:var(--accent2)}
+.card-src{font-size:12.5px}
+.card-src a{color:var(--accent2);text-decoration:none;font-weight:600}
+.card-src .nosrc{color:var(--muted2)}
+.empty{padding:48px 20px;color:var(--muted);grid-column:1/-1;text-align:center;font-size:14.5px}
+.empty b{display:block;font-size:16px;color:var(--text2);margin-bottom:6px}
+
+/* ---------- modal ---------- */
+#modal{position:fixed;inset:0;background:#000000c0;display:none;z-index:60;padding:0}
+#modal.open{display:flex;align-items:stretch;justify-content:center}
+@media(min-width:641px){#modal{padding:24px;align-items:flex-start;overflow:auto}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:0;width:100%;max-width:900px;max-height:100%;overflow:auto;display:flex;flex-direction:column;padding:0;scrollbar-width:thin;scrollbar-color:#3a3a5c transparent}
+@media(min-width:641px){.panel{border-radius:16px;max-height:calc(100vh - 48px)}}
+.panel-inner{scrollbar-width:thin;scrollbar-color:#3a3a5c transparent}
+.panel-inner{padding:0 22px 30px}
+.mhead{position:sticky;top:0;background:linear-gradient(var(--surface) 82%,transparent);z-index:5;padding:14px 22px 10px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.mhead .t{min-width:0}
+.mhead .price{font-size:26px}
+.mclose{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;min-width:44px;min-height:44px;font-size:17px;cursor:pointer;flex:none}
+.mhead .sub{font-size:13.5px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.msec{margin-top:20px}
+.msec h3{margin:0 0 10px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:700;display:flex;align-items:center;gap:8px}
+.msec h3 .hint{font-weight:400;text-transform:none;letter-spacing:0;font-size:12px;color:var(--muted2)}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.kv .cell{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;min-width:0}
+.kv .k{font-size:11.5px;color:var(--muted2);text-transform:uppercase;letter-spacing:.4px}
+.kv .v{font-size:15px;font-weight:600;color:var(--text2);margin-top:3px;overflow-wrap:break-word}
+.kv .v.miss{color:var(--muted2);font-weight:400}
+.kv .note{font-size:12px;color:var(--muted);margin-top:3px}
+/* gallery */
+.gallery{position:relative;background:#101018;border-radius:12px;overflow:hidden}
+.g-main{height:min(52vh,440px);display:flex;align-items:center;justify-content:center;position:relative;cursor:zoom-in}
+@media(max-width:700px){.g-main{height:min(40vh,320px)}}
+.g-main img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.g-fallback{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted2);font-size:13.5px;padding:30px}
+.g-nav{position:absolute;top:50%;transform:translateY(-50%);background:#0c0c16cc;border:1px solid var(--border2);border-radius:10px;min-width:46px;min-height:46px;font-size:19px;cursor:pointer;color:#fff}
+.g-nav.prev{left:10px}.g-nav.next{right:10px}
+.g-nav:hover{background:#1b1b30}
+.g-count{position:absolute;top:10px;right:10px;background:#0c0c16d0;border-radius:8px;padding:4px 10px;font-size:12.5px;color:var(--text2)}
+.g-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 4px 4px;scrollbar-width:thin}
+.g-thumb{width:72px;height:48px;border-radius:7px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:var(--surface2);flex:none;padding:0}
+.g-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.g-thumb[aria-current=true]{border-color:var(--accent)}
+.g-hint{font-size:12px;color:var(--muted2);margin-top:6px}
+#viewer{position:fixed;inset:0;background:#05050add;z-index:80;display:none;align-items:center;justify-content:center}
+#viewer.open{display:flex}
+#viewer img{max-width:96vw;max-height:92vh;object-fit:contain}
+#viewer .g-nav{transform:none;top:auto}
+#viewer .vclose{position:absolute;top:12px;right:12px;background:#1b1b30}
+/* assessment */
+.assess{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.assess .scorecard{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;min-width:150px}
+.assess .big{font-size:30px;font-weight:800;color:#d7ddff;line-height:1}
+.assess .big small{font-size:14px;color:var(--muted2);font-weight:500}
+.assess .meta{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+.assess .meta b{color:var(--text2)}
+.factor{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.factor:last-child{border-bottom:none}
+.factor .f{flex:1;min-width:0}
+.factor .f b{font-weight:600;color:var(--text2)}
+.factor .f .why{display:block;color:var(--muted);font-size:12.5px;margin-top:2px;line-height:1.4}
+.factor .bar{width:84px;height:7px;background:#2b2b46;border-radius:4px;overflow:hidden;flex:none}
+.factor .bar i{display:block;height:100%;background:var(--good)}
+.factor .bar.na i{background:var(--muted2)}
+.factor .p{font-size:12.5px;color:var(--muted);width:76px;text-align:right;flex:none}
+.factor.miss .f{color:var(--muted2)}
+.swlist{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:13.5px}
+.swlist .pro{color:#9ff0c5}.swlist .con{color:#ffc4bc}
+.swlist span{display:flex;gap:8px;align-items:baseline}
+/* history */
+.hist{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.hrow{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13.5px}
+.hrow:last-child{border-bottom:none}
+.hrow .d{color:var(--muted);min-width:104px;white-space:nowrap}
+.hrow .p{font-weight:700;color:var(--text2)}
+.hrow .c{font-size:12.5px}
+.hrow .src{color:var(--muted2);font-size:12px;margin-left:auto}
+.hchart{display:flex;align-items:flex-end;gap:3px;height:56px;margin:12px 2px 4px}
+.hchart i{flex:1;background:var(--accent);opacity:.75;border-radius:2px 2px 0 0;min-width:4px}
+.hchart i:nth-child(even){background:var(--accent);opacity:1}
+.hist-note{font-size:12px;color:var(--muted2);margin-top:8px}
+/* comparables */
+.cmp-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:14px}
+.cmp-grid{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+.cmp-grid .cell{min-width:130px}
+.cmp-grid .k{font-size:11.5px;color:var(--muted2);text-transform:uppercase;letter-spacing:.4px}
+.cmp-grid .v{font-size:16px;font-weight:700;color:var(--text2);margin-top:2px}
+.cmp-grid .v.good{color:var(--good)}.cmp-grid .v.bad{color:var(--bad)}
+.disclaimer{font-size:12.5px;color:var(--muted);margin-top:10px;border-left:3px solid var(--warn);padding-left:10px;line-height:1.5}
+/* characteristics */
+.charsec{margin-bottom:14px}
+.charsec h4{margin:0 0 6px;font-size:13.5px;color:var(--text2);font-weight:600}
+.charrow{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);font-size:13.5px;flex-wrap:wrap}
+.charrow:last-child{border-bottom:none}
+.charrow .name{min-width:150px;color:var(--text2)}
+.state{font-size:12px;font-weight:700;padding:3px 9px;border-radius:7px;white-space:nowrap}
+.state.yes{background:#16301f;color:#9ff0c5}
+.state.no{background:#2e2144;color:#e0b9ff}
+.state.unknown{background:#232338;color:var(--muted)}
+.state.conflict{background:#3a3018;color:#ffd58e}
+.state.enum{background:#1c2540;color:#a9c4ff}
+.charrow details{flex:1;min-width:200px}
+.charrow summary{cursor:pointer;color:var(--muted);font-size:12.5px;list-style:none;white-space:nowrap}
+.charrow summary::before{content:'▸ '}
+.charrow details[open] summary::before{content:'▾ '}
+.charrow .evid{color:var(--muted2);font-size:12.5px;margin-top:4px;line-height:1.45}
+/* ads */
+.adrow{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.adrow:last-child{border-bottom:none}
+.adrow .id{font-weight:600}
+.adrow .id a{color:var(--accent2);text-decoration:none}
+.adrow .sp{color:var(--muted)}
+.adrow .own-hist{color:var(--muted2);font-size:12.5px;width:100%}
+.adrow .btn-sm{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;min-height:38px;cursor:pointer;font-size:12.5px}
+.desc-block{white-space:pre-wrap;font-size:14px;color:var(--text2);line-height:1.55;max-height:300px;overflow:auto;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.src-lang{font-size:12px;color:var(--muted2);margin-top:6px}
+/* compare */
+.cmp-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.cmp-table th,.cmp-table td{padding:8px 10px;border:1px solid var(--border);text-align:left;vertical-align:top}
+.cmp-table th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.cmp-table td.b{font-weight:700;color:var(--text2)}
+/* menu */
+.menu-pop{position:absolute;right:14px;top:56px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:8px;z-index:70;min-width:230px;box-shadow:0 12px 40px #0009;display:none}
+.menu-pop.open{display:block}
+.menu-pop button{display:flex;width:100%;gap:10px;align-items:center;background:none;border:none;padding:11px 12px;border-radius:8px;cursor:pointer;font-size:13.5px;text-align:left;min-height:42px;color:var(--text2)}
+.menu-pop button:hover{background:var(--surface2)}
+.menu-pop .sep{height:1px;background:var(--border);margin:6px 4px}
+.menu-pop .info{padding:10px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+@media(max-width:700px){
+  .topbar{padding:8px 10px;gap:8px}
+  .top-meta{display:none}
+  .profiles,.toolbar{padding-left:10px;padding-right:10px}
+  .toolbar{top:52px;row-gap:8px}
+  .sortwrap{flex-wrap:wrap;row-gap:6px;flex:1 1 100%}
+  .pair{flex:1 1 42vw}
+  .pair select{width:100%;min-width:0}
+  .panel-inner{padding:0 14px 30px}
+  .mhead{padding:10px 14px 8px}
+  .card-actions .act span{display:inline}
+}
+@media(prefers-reduced-motion:no-preference){.card,.act,.iconbtn{transition:background .12s,border-color .12s}}
 </style>
 </head>
 <body>
-<header>
+<a class="skip" href="#listings">Skip to listings</a>
+<header class="topbar">
+  <span class="brand-mark" aria-hidden="true"><span class="brand-dot"></span></span>
   <h1>House Tracker</h1>
-  <button class="btn" id="refreshBtn" aria-label="Reload listings from the local store (no new portal scan)">Reload data</button>
-  <button class="btn" id="exportBtn" aria-label="Export your review decisions as a file">Export reviews</button>
-  <button class="btn" id="importBtn" aria-label="Import review decisions from a file">Import</button>
-  <input type="file" id="importFile" accept="application/json" style="display:none" aria-hidden="true" tabindex="-1">
-  <div class="fresh" id="freshness" aria-live="polite">loading…</div>
-  <div id="summary"></div>
+  <div class="top-meta" id="freshness" aria-live="polite">loading…</div>
+  <span class="top-spacer"></span>
+  <div class="top-actions">
+    <button class="shortcut-chip" id="shortlistBtn" aria-label="Show shortlisted properties">★ Shortlist <span class="n" id="shortCount">0</span></button>
+    <button class="iconbtn" id="menuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="More tools and data info">⋯</button>
+  </div>
+  <div class="menu-pop" id="menuPop" role="menu" aria-label="Tools and data information">
+    <button role="menuitem" id="refreshBtn">↻ Reload page data<small style="color:var(--muted2);font-weight:400">no new collection</small></button>
+    <button role="menuitem" id="exportBtn">⬇ Export review decisions</button>
+    <button role="menuitem" id="importBtn">⬆ Import review decisions</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" aria-hidden="true" tabindex="-1">
+    <div class="sep" role="separator"></div>
+    <div class="info" id="menuInfo"></div>
+  </div>
 </header>
-<div class="controls">
-  <label for="filter" style="color:var(--muted);font-size:12.5px">Filter</label>
-  <select id="filter" onchange="render()">
-    <option value="verified" selected>Unique properties</option>
-    <option value="all">All ads (ungrouped)</option>
-    <option value="newmarket">New on market</option>
-    <option value="newdisc">Newly discovered</option>
-    <option value="updated">Updated / price moved</option>
-    <option value="shortlisted">Shortlisted</option>
-    <option value="reviewed">Reviewed</option>
-    <option value="dismissed">Dismissed</option>
-    <option value="grouped">Duplicates &amp; multi-listed</option>
-    <option value="removed">Removed</option>
-    <option value="reduced">Price reduced</option>
-    <option value="increased">Price increased</option>
-    <option value="top">Top by score</option>
-    <option value="A_investment_1br">1-Bed Investment (NS)</option>
-    <option value="B_residence_2br">2-Bed Residence (NS)</option>
-    <option value="C_piraeus_univ_1br">Piraeus Univ 1-Bed</option>
-    <option value="legacy">Snapshot cards only</option>
-  </select>
-  <label for="sort" style="color:var(--muted);font-size:12.5px">Sort</label>
-  <select id="sort" onchange="render()">
-    <option value="score">Best score</option>
-    <option value="drop_pct">Biggest price reduction (%)</option>
-    <option value="drop_abs">Biggest price reduction (€)</option>
-    <option value="change_recent">Most recent change (any direction)</option>
-    <option value="price_asc">Price low→high</option>
-    <option value="price_desc">Price high→low</option>
-    <option value="pps_asc">€/sqm low→high</option>
-    <option value="pps_desc">€/sqm high→low</option>
-    <option value="size_desc">Size large→small</option>
-    <option value="newest">Latest published/discovered</option>
-  </select>
-  <input type="search" id="search" placeholder="Search visible fields: area, keywords, price…" oninput="render()" aria-label="Search listings">
+
+<nav class="profiles" role="tablist" aria-label="Search profiles">
+  <button class="profile-tab" role="tab" data-profile="all" aria-selected="true" title="Every property across all configured searches">All searches</button>
+  <button class="profile-tab" role="tab" data-profile="A_investment_1br" aria-selected="false" title="Profile A — 1-bed investment, 50-60 sqm, buy to rent, Nea Smyrni, floor 2+, up to €250K">A · 1-Bed Investment <small>Nea Smyrni</small></button>
+  <button class="profile-tab" role="tab" data-profile="B_residence_2br" aria-selected="false" title="Profile B — 2-bed residence 80-140 sqm, personal home, Nea Smyrni (Ano excluded), floor 2+, up to €250K">B · 2-Bed Residence <small>Nea Smyrni</small></button>
+  <button class="profile-tab" role="tab" data-profile="C_piraeus_univ_1br" aria-selected="false" title="Profile C — 1-bed investment, Piraeus center near the University of Piraeus, 50-60 sqm, floor 2+, up to €250K">C · Piraeus 1-Bed <small>University area</small></button>
+</nav>
+
+<div class="toolbar">
+  <div class="quick" role="group" aria-label="Quick filters">
+    <button class="qbtn" data-quick="all" aria-pressed="true" title="Unique properties — confirmed duplicate groups collapse to one card">Properties</button>
+    <button class="qbtn" data-quick="newmarket" aria-pressed="false">New on market</button>
+    <button class="qbtn" data-quick="reduced" aria-pressed="false" title="Ads with a price reduction (group-aware)">↓ Reduced</button>
+    <button class="qbtn" data-quick="reviewed" aria-pressed="false">✓ Reviewed</button>
+  </div>
+  <div class="sortwrap">
+    <span class="pair"><label for="moreFilters">More</label>
+    <select id="moreFilters" aria-label="Additional filters">
+      <option value="">No extra filter</option>
+      <option value="newdisc">Newly discovered</option>
+      <option value="updated">Price moved (any direction)</option>
+      <option value="increased">↑ Price increased</option>
+      <option value="possible">Possible duplicates (unverified)</option>
+      <option value="grouped">Grouped / multi-advertised</option>
+      <option value="allads">All individual ads (no grouping)</option>
+      <option value="top">High score (≥55)</option>
+      <option value="removed">Removed listings</option>
+      <option value="dismissed">Dismissed</option>
+      <option value="legacy">Snapshot cards only</option>
+    </select></span><span class="pair"><label for="sort">Sort</label>
+    <select id="sort" aria-label="Sort listings">
+      <option value="score" selected>Best score</option>
+      <option value="price_asc">Lowest asking price</option>
+      <option value="pps_asc">Lowest €/sqm</option>
+      <option value="drop_pct">Largest reduction %</option>
+      <option value="drop_abs">Largest reduction €</option>
+      <option value="change_recent">Most recent movement</option>
+      <option value="newest">Newest listings</option>
+      <option value="size_desc">Largest size</option>
+      <option value="price_desc">Highest price</option>
+      <option value="pps_desc">Highest €/sqm</option>
+    </select>
+  </div>
+  <div class="searchwrap">
+    <input type="search" id="search" placeholder="Search area, price, features…" aria-label="Search listings" autocomplete="off">
+    <button class="search-clear" id="searchClear" aria-label="Clear search" style="display:none">✕</button>
+  </div>
 </div>
+<div class="active-filters" id="activeFilters"></div>
+<div class="resultbar" id="resultbar" aria-live="polite"></div>
+
 <main id="listings" tabindex="-1"><div class="empty">Loading listings…</div></main>
 
 <div id="modal" role="dialog" aria-modal="true" aria-label="Listing details" onclick="if(event.target===this)closeModal()">
   <div class="panel" id="modalPanel"></div>
 </div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Enlarged photograph" onclick="if(event.target===this)closeViewer()"></div>
 
 <script>
 let allListings=[],meta={},groupIndex={},searchStrings=new Map();
 const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
-function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const PROFILES=['all','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
+const ui={profile:'all',quick:'all',more:'',sort:'score',search:''};
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function pps(l){const p=l.price_effective||l.price_eur;return (p&&l.size_sqm>0)?p/l.size_sqm:1e9}
 const effPrice=l=>l.price_effective||l.price_eur||1e9;
-function money(n){return n?Number(n).toLocaleString('en-US')+' €':''}
+function money(n){return (n!=null&&n!==0)?Number(n).toLocaleString('en-US')+' €':''}
 function fmtShort(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7):'—'}
+function fmtDate(iso){if(!iso)return '—';const d=new Date(iso);return isNaN(d)?iso:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
+function fmtDataFresh(iso){
+  if(!iso)return 'unknown';
+  const d=new Date(iso);if(isNaN(d))return iso;
+  const now=new Date();
+  const sameDay=d.toDateString()===now.toDateString();
+  const t=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  if(sameDay)return 'today '+t;
+  const day=86400000,days=Math.floor((now-d)/day);
+  if(days===1)return 'yesterday '+t;
+  if(days<7)return days+' days ago';
+  return fmtDate(iso);
+}
 function reviews(){try{return JSON.parse(localStorage.getItem(REV_KEY))||{}}catch(e){return{}}}
 
+/* ---------------- data load ---------------- */
 async function loadAll(){
   try{
     const t0=performance.now();
@@ -154,24 +382,29 @@ async function loadAll(){
     ]);
     allListings=lRes;meta=mRes||{};
     buildSearchStrings();buildGroupIndex();
-    document.getElementById('refreshBtn').textContent='Reloaded '+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+    const up=meta.last_scan_at?('Last data: <b>'+fmtDataFresh(meta.last_scan_at)+'</b> · daily refresh ~11:00 (Athens)'):'';
+    document.getElementById('freshness').innerHTML=up;
+    document.getElementById('menuInfo').innerHTML='Data collection runs daily ~11:00 Athens time (scanner + detail refresh).<br>'+
+      'This page reloads the snapshot — it never triggers a new collection.<br>'+
+      'Records: <b>'+(meta.total_rows||'?')+'</b> · active: <b>'+(meta.active_rows||'?')+'</b> · unique properties: <b>'+(meta.unique_properties||'?')+'</b>';
     render();
     window.__lastLoadMs=Math.round(performance.now()-t0);
   }catch(e){
-    document.getElementById('listings').innerHTML='<div class="empty">Data unavailable: '+esc(String(e))+'</div>';
+    document.getElementById('listings').innerHTML='<div class="empty"><b>Data unavailable</b>'+esc(String(e))+'</div>';
   }
 }
 
+/* ---------------- search index (precomputed once) ---------------- */
 function buildSearchStrings(){
   // search only what the user can SEE (no hidden JSON blob matching)
   searchStrings=new Map();
   for(const l of allListings){
     const ch=l.characteristics||{};
     const loc=l.location||{};
+    const nb=l.neighborhood_info||{};
     const parts=[String(l.id),l.area,l.desc,l.status_label,l.status,l.renovation,l.energy_class,
       loc.actual_city,loc.advertised,loc.title_city,(loc.actual_tags||[]).join(' '),
-      ch.renovation&&ch.renovation.label,(ch.energy_class||{}).value];
-    // mirror the EXACT visible card tags (state-derived) so search matches what the user sees
+      ch.renovation&&ch.renovation.label,(ch.energy_class||{}).value,nb.neighborhood];
     const st=k=>((ch[k]||{}).state);
     if(st('elevator')==='yes')parts.push('Elevator');else if(st('elevator')==='no')parts.push('No elevator');
     if(st('parking')==='yes')parts.push('Parking');else if(st('parking')==='no')parts.push('No parking');
@@ -188,8 +421,8 @@ function buildSearchStrings(){
   }
 }
 
+/* ---------------- grouping (unchanged semantics) ---------------- */
 function buildGroupIndex(){
-  // likely multi-ad groups collapse to one primary card; 'possible' stays individual
   groupIndex={};memberListings=new Map();
   const byId=new Map(allListings.map(l=>[l.id,l]));
   for(const l of allListings){
@@ -201,15 +434,11 @@ function buildGroupIndex(){
     }
   }
 }
-// all rows representing the same physical property as l (l itself when ungrouped)
 function memberRows(l){
   const g=l.group&&groupIndex[l.group.property_id];
   if(!g)return [l];
-  return (g.primary_id===l.id?(memberListings.get(l.id)||[l]):[l]) ;
+  return (g.primary_id===l.id?(memberListings.get(l.id)||[l]):[l]);
 }
-// P5: member-level movement helpers — a recent increase never masks an older
-// valid reduction; authoritative prop_movement (from the backend, likely
-// groups only) keeps reduction/increase/latest SEPARATE per property.
 function memberReduction(l){
   const pm=(l.prop_movement||{}).reduction;
   if(pm)return pm;
@@ -232,10 +461,15 @@ function latestChange(l){
   for(const m of memberRows(l)){const mv=m.movement||{};if(mv.direction==='down'||mv.direction==='up')return mv;}
   return null;
 }
+
+/* ---------------- filtering (profile × quick × more, group-aware) ---------------- */
+// filters evaluated over EVERY member ad of a likely group, so a secondary ad's
+// signal never hides the property card
+const MEMBER_FILTERS=['newmarket','newdisc','updated','reduced','increased','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
 function rowMatches(l,filter,rev){
   const label=l.status_label||'';
   switch(filter){
-    case'verified':case'all':return true;
+    case'allads':case'verified':case'quickall':return true;
     case'legacy':return !l.url;
     case'newmarket':return label==='NEW ON MARKET';
     case'newdisc':return label==='NEWLY DISCOVERED';
@@ -243,6 +477,7 @@ function rowMatches(l,filter,rev){
     case'reduced':return !!memberReduction(l);
     case'increased':return !!memberIncrease(l);
     case'grouped':return !!(l.group&&l.group.n_ads>1);
+    case'possible':return !!(l.group&&l.group.n_ads>1&&l.group.level==='possible');
     case'removed':return !!(l.status&&(l.status+'').indexOf('removed')>-1);
     case'top':return (l.score_v2||l.score||0)>=55;
     case'shortlisted':return !!(rev[l.id]&&rev[l.id].state==='shortlist');
@@ -253,21 +488,20 @@ function rowMatches(l,filter,rev){
   }
   return true;
 }
-// Property-level filters evaluate EVERY member advertisement of a likely group,
-// so a secondary ad's reduction/shortlist/update/profile never hides the property.
-const MEMBER_FILTERS=['newmarket','newdisc','updated','reduced','increased',
-                      'shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
 function matchesFilter(l,filter,rev){
   if(MEMBER_FILTERS.indexOf(filter)>=0)return memberRows(l).some(m=>rowMatches(m,filter,rev));
   return rowMatches(l,filter,rev);
 }
-
-function propertyView(filter){
-  // for the default views, likely duplicate groups collapse to their primary ad
-  const GROUPED=['verified','newmarket','newdisc','updated','reduced','increased','top',
-                 'shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
-  const rev=reviews();
-  if(GROUPED.indexOf(filter)<0)return allListings;
+// views that collapse likely groups to one primary card
+const GROUPED_VIEWS=['quickall','newmarket','newdisc','updated','reduced','increased','top','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br'];
+function collapsedView(){
+  if(ui.more==='allads')return false;   // explicit ungrouped view
+  const activeMore=ui.more||'';
+  const view=ui.quick!=='all'?ui.quick:(activeMore||'quickall');
+  return GROUPED_VIEWS.indexOf(view)>=0;
+}
+function propertyView(){
+  if(!collapsedView())return allListings;
   const suppress=new Set();
   for(const pid in groupIndex){
     const g=groupIndex[pid];
@@ -275,17 +509,19 @@ function propertyView(filter){
   }
   return allListings.filter(l=>!suppress.has(l.id));
 }
-
 function currentList(){
-  const filter=document.getElementById('filter').value;
   const rev=reviews();
-  const search=(document.getElementById('search').value||'').toLowerCase();
+  const search=(ui.search||'').toLowerCase();
+  const profileMatch=l=>ui.profile==='all'||matchesFilter(l,ui.profile,rev);
   // dismissed primary must not hide other member ads of the same property
-  const notDismissed=l=>filter==='dismissed'||memberRows(l).some(m=>!(rev[m.id]&&rev[m.id].state==='dismissed'));
-  // grouped view stays grouped while searching: an ad that matches inside a
-  // likely duplicate group promotes its primary card instead of adding the member
-  const base=propertyView(filter).filter(l=>matchesFilter(l,filter,rev)&&notDismissed(l));
+  const notDismissed=l=>(ui.quick==='reviewed')||(ui.more==='dismissed')||(ui.quick==='all'&&ui.more==='dismissed')||memberRows(l).some(m=>!(rev[m.id]&&rev[m.id].state==='dismissed'));
+  let base=propertyView().filter(l=>profileMatch(l)
+    &&(ui.quick==='all'||matchesFilter(l,ui.quick,rev))
+    &&(!ui.more||ui.more==='allads'?true:matchesFilter(l,ui.more,rev))
+    &&notDismissed(l));
   if(!search)return base;
+  // searching grouped properties still finds matching secondary ads:
+  // a hit inside a likely group promotes the primary card
   const memberHits=new Set();
   for(const l of allListings){
     const g=l.group&&groupIndex[l.group.property_id];
@@ -295,13 +531,9 @@ function currentList(){
   return base.filter(l=>(searchStrings.get(l.id)||'').includes(search)||memberHits.has(l.id));
 }
 
-function render(){
-  const filter=document.getElementById('filter').value;
-  const sort=document.getElementById('sort').value;
-  const search=(document.getElementById('search').value||'').toLowerCase();
-  const list=currentList();
-  // REDUCTIONS ONLY: sorting keys come from the member-level helpers above —
-  // reductions sort by applicable reductions, increases never masquerade.
+/* ---------------- sorting ---------------- */
+function sortList(list){
+  const sort=ui.sort;
   const dropPct=l=>{const mv=memberReduction(l);return (mv&&mv.pct_change!=null)?Math.abs(mv.pct_change):-1;};
   const dropAbs=l=>{const mv=memberReduction(l);return (mv&&mv.abs_change!=null)?Math.abs(mv.abs_change):-1;};
   const changeDate=l=>{const mv=latestChange(l);return (mv&&(mv.changed_at||mv.previous_date))||'2000-01-01';};
@@ -315,152 +547,207 @@ function render(){
       case'price_desc':return (b.price_effective||b.price_eur||0)-(a.price_effective||a.price_eur||0);
       case'pps_asc':return pps(a)-pps(b);
       case'pps_desc':return pps(b)-pps(a);
-      case'size_desc':return(b.size_sqm||0)-(a.size_sqm||0);
+      case'size_desc':return (b.size_sqm||0)-(a.size_sqm||0);
       case'newest':return dateOf(b).localeCompare(dateOf(a));
-      default:return(b.score_v2!=null?b.score_v2:(b.score||0))-(a.score_v2!=null?a.score_v2:(a.score||0));
+      default:return (b.score_v2!=null?b.score_v2:(b.score||0))-(a.score_v2!=null?a.score_v2:(a.score||0));
     }
   });
-  const uniqueN=list.filter(l=>l.group&&groupIndex[l.group.property_id]&&l.id===groupIndex[l.group.property_id].primary_id).length;
-  const shortN=Object.keys(reviews()).filter(k=>reviews()[k].state==='shortlist').length;
-  document.getElementById('summary').textContent=
-    (meta.total_rows||'?')+' records · '+(meta.active_rows||'?')+' active · '+
-    (meta.unique_properties||'?')+' unique properties · '+
-    list.length+' in view'+(uniqueN?' ('+uniqueN+' primary cards of grouped)':'')+' · '+
-    shortN+' shortlisted · '+(meta.groups_likely||'?')+' confirmed + '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible dup groups';
-  document.getElementById('freshness').innerHTML=
-    'Last data collection: <b>'+(meta.last_scan_at?fmtShort(meta.last_scan_at)+' '+(meta.last_scan_at||'').slice(11,16):'unknown')+
-    '</b> · detail refresh ~09:00 + vision harvest 11:00 (Athens local) · page reloaded <b>'+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+'</b>';
-
-  const container=document.getElementById('listings');
-  if(list.length===0){container.innerHTML='<div class="empty">No listings match this filter.</div>';return}
-  container.innerHTML=list.map(l=>cardHtml(l,reviews())).join('');
 }
 
+/* ---------------- render ---------------- */
+function render(){
+  const t0=performance.now();
+  const rev=reviews();
+  const list=currentList();
+  sortList(list);
+  // counts per quick filter: within the CURRENT PROFILE, ignoring the search term
+  // (deliberate — counts show how much each filter holds before you commit to it)
+  const counts={};
+  for(const q of ['newmarket','reduced','shortlisted','reviewed']){
+    const rev2=reviews();
+    let n=0;
+    for(const l of propertyView()){
+      if(!(ui.profile==='all'||matchesFilter(l,ui.profile,rev2)))continue;
+      if(matchesFilter(l,q,rev2))n++;
+    }
+    counts[q]=n;
+  }
+  const shortN=Object.keys(rev).filter(k=>rev[k].state==='shortlist').length;
+  document.getElementById('shortCount').textContent=shortN;
+  document.querySelectorAll('.qbtn').forEach(b=>{
+    const q=b.dataset.quick;
+    b.setAttribute('aria-pressed',String(ui.quick===q));
+    const n=b.querySelector('.n');
+    if(!n&&counts[q]!=null)b.insertAdjacentHTML('beforeend',' <span class="n">'+counts[q]+'</span>');
+    else if(n)n.textContent=counts[q];
+    b.classList.toggle('zero',counts[q]===0);
+  });
+  document.querySelectorAll('.profile-tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.profile===ui.profile)));
+  document.getElementById('searchClear').style.display=ui.search?'':'none';
+  // active filter chips
+  const chips=[];
+  const clearAll=()=>{ui.profile='all';ui.quick='all';ui.more='';ui.search='';document.getElementById('search').value='';document.getElementById('moreFilters').value='';saveUI();render()};
+  if(ui.profile!=='all')chips.push(['profile',PROFILE_LABELS[ui.profile]]);
+  if(ui.quick!=='all')chips.push(['quick',QUICK_LABELS[ui.quick]||ui.quick]);
+  if(ui.more)chips.push(['more',document.querySelector('#moreFilters option[value="'+CSS.escape(ui.more)+'"]').textContent]);
+  if(ui.search)chips.push(['search','“'+ui.search+'”']);
+  const af=document.getElementById('activeFilters');
+  af.innerHTML=chips.map(c=>'<span class="fchip">'+esc(c[1])+'<button onclick="clearFilter(\''+c[0]+'\')" aria-label="Remove this filter">✕</button></span>').join('')
+    +(chips.length?'<button class="reset-link" onclick="clearAllFilters()">Reset all</button>':'');
+  // result bar
+  const uniqueN=list.filter(l=>l.group&&groupIndex[l.group.property_id]&&l.id===groupIndex[l.group.property_id].primary_id).length;
+  document.getElementById('resultbar').innerHTML=
+    '<span><b class="num">'+list.length+'</b> propert'+(list.length===1?'y':'ies')+' in view'+(uniqueN&&uniqueN!==list.length?' <span>('+uniqueN+' grouped cards)</span>':'')+'</span>'+
+    '<span>· '+(meta.groups_likely||'?')+' confirmed · '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible duplicate groups</span>';
+  const container=document.getElementById('listings');
+  if(list.length===0){
+    container.innerHTML='<div class="empty"><b>No properties match</b>Try removing a filter or clearing the search. Confirmed duplicate groups collapse to one card — open “All individual ads” to see every advertisement.</div>';
+    return;
+  }
+  container.innerHTML=list.map(l=>cardHtml(l,rev)).join('');
+  window.__renderMs=Math.round(performance.now()-t0);
+}
+const PROFILE_LABELS={A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed'};
+const QUICK_LABELS={newmarket:'New on market',reduced:'Price reductions',reviewed:'Reviewed'};
+function clearFilter(kind){
+  if(kind==='profile')ui.profile='all';
+  if(kind==='quick')ui.quick='all';
+  if(kind==='more'){ui.more='';document.getElementById('moreFilters').value='';}
+  if(kind==='search'){ui.search='';document.getElementById('search').value='';}
+  saveUI();render();
+}
+function clearAllFilters(){
+  ui.profile='all';ui.quick='all';ui.more='';ui.search='';
+  document.getElementById('search').value='';document.getElementById('moreFilters').value='';
+  saveUI();render();
+}
+
+/* ---------------- card ---------------- */
+function conditionChips(l){
+  const ch=l.characteristics||{};
+  const st=k=>((ch[k]||{}).state);
+  const chips=[];
+  const renLbl=l.renovation,ren=st('renovation');
+  if(renLbl&&ren!=='unknown'&&ren!=='conflict'){
+    const cls=(ren==='renovated'||ren==='new_build')?'yes':(ren==='partially_renovated'?'mid':(ren==='not_claimed'?'mut':'no'));
+    chips.push('<span class="chip '+cls+'">'+esc(renLbl)+'</span>');
+  }else if(ren==='conflict')chips.push('<span class="chip mid">Condition: conflicting sources</span>');
+  const cst=st('construction_status');
+  if(cst==='under_construction')chips.push('<span class="chip mid">Under construction</span>');
+  else if(cst==='planned')chips.push('<span class="chip mid">Off-plan</span>');
+  if(st('elevator')==='yes')chips.push('<span class="chip mut">Elevator</span>');
+  else if(st('elevator')==='no')chips.push('<span class="chip mut">No elevator</span>');
+  if(st('parking')==='yes')chips.push('<span class="chip mut">Parking</span>');
+  else if(st('parking')==='no')chips.push('<span class="chip mut">No parking</span>');
+  const ec=(ch.energy_class||{}).value;
+  if(ec)chips.push('<span class="chip mut">Energy '+esc(ec)+'</span>');
+  else if((ch.energy_class||{}).state==='exempt')chips.push('<span class="chip mut">Energy: exempt</span>');
+  else if((ch.energy_class||{}).state==='pending')chips.push('<span class="chip mut">Energy: pending</span>');
+  if(st('furnished')==='yes')chips.push('<span class="chip mut">Furnished</span>');
+  if(st('heating')==='autonomous_gas')chips.push('<span class="chip mut">Gas heating</span>');
+  if(st('no_commission')==='yes')chips.push('<span class="chip mut">No commission</span>');
+  return chips.slice(0,6).join('');
+}
 function cardHtml(l,rev){
-  const mv=l.movement||{direction:'unknown'};
-  const label=l.status_label||'';
+  const mv=l.movement||{},label=l.status_label||'';
   const isRemoved=l.status&&(l.status+'').indexOf('removed')>-1;
   const rv=rev[l.id]||{};
   const pricePerSqm=(l.price_eur&&l.size_sqm>0)?Math.round(l.price_eur/l.size_sqm):null;
   const score=(l.score_v2!=null)?l.score_v2:(l.score||0);
   const prof=l.score_v2_profile||'';
-  const ch=l.characteristics||{};
-  const loc=l.location||{};
+  const ch=l.characteristics||{},loc=l.location||{},nb=l.neighborhood_info||{};
   const d=l.dates||{};
   const g=l.group&&groupIndex[l.group.property_id];
   const isPrimaryGroup=g&&l.id===g.primary_id;
-  const thumb=l.thumb;
+  const isPossible=l.group&&l.group.n_ads>1&&l.group.level==='possible';
   const rvChanged=rv.snap&&rv.snap.price&&l.price_eur&&rv.snap.price!==l.price_eur;
-
+  const thumb=l.thumb;
+  // photo overlays: high-priority only
   let badges='';
-  if(label==='NEW ON MARKET')badges+='<span class="card-badge badge-newmarket">NEW ON MARKET</span>';
-  else if(label==='NEWLY DISCOVERED')badges+='<span class="card-badge badge-newdisc">NEWLY DISCOVERED</span>';
-  else if(label==='UPDATED')badges+='<span class="card-badge badge-updated">UPDATED</span>';
-  else if(label==='REMOVED')badges+='<span class="card-badge badge-removed">REMOVED</span>';
-  if(isRemoved)badges+='<span class="card-badge badge-removed">GONE</span>';
-  if(rvChanged)badges+='<span class="card-badge badge-updated">CHANGED</span>';
-  if(rv.state==='shortlist')badges+='<span class="card-badge badge-review">★ SHORTLIST</span>';
-  else if(rv.state==='reviewed')badges+='<span class="card-badge badge-review">✓ REVIEWED</span>';
-  if(isPrimaryGroup){
-    badges+='<span class="card-badge badge-review">⧉ '+g.n_ads+' ADS</span>';
-    // P6: make the ranking price visible — sorting uses the LOWEST active
-    // asking price, which can be lower than this (primary) ad's price.
-    if(l.price_effective!=null&&l.price_eur!=null&&l.price_effective<l.price_eur)
-      badges+='<span class="card-badge badge-updated">⤓ RANKS AT €'+l.price_effective.toLocaleString('en-US')+' · lowest active ask of '+g.n_ads+' ads</span>';
-    // explain when a GROUP MEMBER (not the primary ad) carries the signal
-    const members=memberListings.get(l.id)||[];
-    if(members.some(m=>m.id!==l.id&&m.movement&&m.movement.reduced))
-      badges+='<span class="card-badge badge-updated">↓ PRICE DROP IN MEMBER AD</span>';
-    if(members.some(m=>m.id!==l.id&&rev[m.id]&&rev[m.id].state==='shortlist'))
-      badges+='<span class="card-badge badge-review">★ MEMBER SHORTLISTED</span>';
-    if(members.some(m=>m.id!==l.id&&(m.search_ids||[]).some(s=>!(l.search_ids||[]).includes(s))))
-      badges+='<span class="card-badge badge-review">⧉ ALSO IN OTHER SEARCH</span>';
-  }
-
-  let mvHtml='';
-  if(mv.direction==='down'&&mv.pct_change!=null)
-    mvHtml='<span class="mv-down">↓ '+Math.abs(mv.abs_change).toLocaleString('en-US')+' € ('+(mv.pct_change<0?'−':'+')+Math.abs(mv.pct_change).toFixed(1)+'%)</span>';
-  else if(mv.direction==='up'&&mv.pct_change!=null)
-    mvHtml='<span class="mv-up">↑ '+mv.abs_change.toLocaleString('en-US')+' € (+'+mv.pct_change.toFixed(1)+'%)</span>';
-
-  const pro=(l.score_strengths||[]).slice(0,2).map(s=>'<span class="pro">✓ '+esc(s.split('(')[0].trim())+'</span>');
-  const con=(l.score_weaknesses||[]).slice(0,2).map(s=>'<span class="con">✗ '+esc(s.split('(')[0].trim())+'</span>');
-  let consHtml='';
-  if(pro.length||con.length)consHtml='<div class="cons">'+pro.join('')+con.join('')+'</div>';
-
-  let tags='';
-  if((ch.elevator||{}).state==='yes')tags+='<span class="tag yes">Elevator</span>';
-  else if((ch.elevator||{}).state==='no')tags+='<span class="tag no">No elevator</span>';
-  if((ch.heating||{}).state==='autonomous_gas')tags+='<span class="tag yes">Gas</span>';
-  if((ch.heating||{}).label&&ch.heating.state!=='unknown')tags+='<span class="tag mut">'+esc(ch.heating.label)+'</span>';
-  if((ch.parking||{}).state==='yes')tags+='<span class="tag yes">Parking</span>';
-  else if((ch.parking||{}).state==='no')tags+='<span class="tag no">No parking</span>';
-  const cst=((ch.construction_status||{}).state);
-  if(cst==='under_construction')tags+='<span class="tag mut">Under construction</span>';
-  else if(cst==='planned')tags+='<span class="tag mut">Off-plan</span>';
-  if((ch.storage||{}).state==='yes')tags+='<span class="tag yes">Storage</span>';
-  if((ch.furnished||{}).state==='yes')tags+='<span class="tag yes">Furnished</span>';
-  else if((ch.furnished||{}).state==='no')tags+='<span class="tag no">Unfurnished</span>';
-  if(l.renovation){
-    const rs=(ch.renovation||{}).state;
-    const rc=(rs==='needs_renovation'||rs==='not_claimed')?'no':(rs==='partially_renovated'?'mid':(rs==='conflict'||rs==='unknown'?'mut':'yes'));
-    tags+='<span class="tag '+rc+'">'+esc(l.renovation)+'</span>';
-  }
-  if((ch.no_commission||{}).state==='yes')tags+='<span class="tag yes">No commission</span>';
-  const ecParsed=(ch.energy_class||{}).value;
-  const ecState=(ch.energy_class||{}).state;
-  if(ecParsed||l.energy_class)tags+='<span class="tag">Energy '+esc(ecParsed||l.energy_class)+'</span>';
-  else if(ecState==='exempt')tags+='<span class="tag mut">Energy: no certificate required (exempt)</span>';
-  else if(ecState==='pending')tags+='<span class="tag mut">Energy: certificate pending</span>';
-  if(l.stale)tags+='<span class="tag no">Not seen since '+fmtShort(d.last_seen)+'</span>';
-
-  const city=loc.actual_city?loc.actual_city[0].toUpperCase()+loc.actual_city.slice(1):'';
-  let areaHtml='<div class="card-area"><span class="act">'+esc(loc.actual_city?city:(l.area||'Unknown area'))+'</span>';
-  if(loc.mismatch&&loc.advertised)areaHtml+=' <span class="mut">advertised: '+esc(loc.advertised)+'</span>';
-  if(loc.mismatch)areaHtml+=' <span class="loc-warn">⚠ mismatched location</span>';
-  else if(loc.ambiguous)areaHtml+=' <span class="loc-warn">⚠ multiple areas</span>';
-  areaHtml+='</div>';
-
+  if(label==='NEW ON MARKET')badges+='<span class="pbadge new">NEW</span>';
+  else if(label==='UPDATED'||rvChanged)badges+='<span class="pbadge updated">PRICE MOVED</span>';
+  if(isRemoved)badges+='<span class="pbadge removed">REMOVED</span>';
+  let ribbon='';
+  if(rv.state==='shortlist')ribbon='<span class="rev-ribbon shortlist">★ Shortlisted</span>';
+  else if(rv.state==='reviewed')ribbon='<span class="rev-ribbon reviewed">✓ Reviewed</span>';
+  else if(rv.state==='dismissed')ribbon='<span class="rev-ribbon dismissed">✗ Dismissed</span>';
+  // price + movement
+  const mvChip=(mv.direction==='down'&&mv.pct_change!=null)
+    ?'<span class="mv-chip mv-down">↓ '+Math.abs(mv.abs_change||0).toLocaleString('en-US')+' € ('+Math.abs(mv.pct_change).toFixed(1)+'%)</span>'
+    :(mv.direction==='up'&&mv.pct_change!=null
+      ?'<span class="mv-chip mv-up">↑ '+(mv.abs_change||0).toLocaleString('en-US')+' € (+'+mv.pct_change.toFixed(1)+'%)</span>':'');
+  // group summary
   let grp='';
   if(isPrimaryGroup){
     const pr=g.prices_all||[];
-    grp='<button class="grp-chip" onclick="openGroup(\''+esc(g.property_id)+'\')" title="Show every advertisement for this property">⧉ '+g.n_ads+' ads'+(pr.length>1?' · '+money(Math.min.apply(null,pr))+'–'+money(Math.max.apply(null,pr)):'')+' — view all</button>';
-  }else if(l.group&&l.group.n_ads>1){
-    grp='<span class="grp-chip pos">⚠ possible duplicate ('+l.group.n_ads+' ads — verify manually)</span>';
+    const gp=l.group_pricing||{};
+    grp='<div class="grp-box"><b>'+g.n_ads+' advertisements (grouped)</b>'
+      +(l.price_effective!=null&&l.price_effective!==l.price_eur?'<span class="num">ranks at <b>'+money(l.price_effective)+'</b> (lowest active ask)</span>':'')
+      +(pr.length>1?'<span class="num">'+money(Math.min.apply(null,pr))+'–'+money(Math.max.apply(null,pr))+' range</span>':'')
+      +(gp.stale_excluded?'<span class="note">'+gp.stale_excluded+(gp.stale_excluded===1?' stale ad':' stale ads')+' excluded from the effective price</span>':'')
+      +'<button class="act" style="min-height:34px;padding:5px 10px" onclick="openGroup(\''+esc(g.property_id)+'\')" aria-label="Show all '+g.n_ads+' advertisements for this property">View all ads</button></div>';
+  }else if(isPossible){
+    grp='<div class="possible-chip">⚠ Possible duplicate — '+l.group.n_ads+' similar ads (unverified match; each ad stays listed separately)</div>';
   }
+  // valuation
   let val='';
-  if(l.valuation&&l.valuation.diff_pct_vs_median!=null)
-    val='<span class="val-chip">'+(l.valuation.diff_pct_vs_median>0?'+':'')+l.valuation.diff_pct_vs_median+'% vs median ('+l.valuation.n_comparables+')</span>';
-
+  if(l.valuation&&l.valuation.diff_pct_vs_median!=null){
+    const diff=l.valuation.diff_pct_vs_median;
+    val='<span class="chip '+(diff<=-10?'yes':(diff>=10?'no':'mut'))+'" title="Asking-price comparison vs comparable ads — not a completed-transaction valuation">'+(diff>0?'+':'')+diff+'% vs area median ('+l.valuation.n_comparables+' comps)</span>';
+  }
+  // strengths / watch-outs
+  const pro=(l.score_strengths||[]).slice(0,2).map(s=>'<span class="pro">✓ '+esc(s.split('(')[0].trim())+'</span>').join('');
+  const con=(l.score_weaknesses||[]).slice(0,2).map(s=>'<span class="con">! '+esc(s.split('(')[0].trim())+'</span>').join('');
+  const whyHtml=(pro||con)?'<div class="why">'+pro+con+'</div>':'';
+  const city=loc.actual_city?loc.actual_city[0].toUpperCase()+loc.actual_city.slice(1):'';
+  const nbTxt=nb.neighborhood?(' · '+esc(nb.neighborhood)):'';
+  const locMain=loc.actual_city?city:(l.area||'Unknown area');
+  const mismatch=loc.mismatch?' <span class="loc-warn">⚠ advertised as '+esc(loc.advertised||'')+'</span>':(loc.ambiguous?' <span class="loc-warn">⚠ multiple areas mentioned</span>':'');
   const dateStr=d.published&&d.published_missing===false?('published '+fmtShort(d.published)):(d.first_seen?('discovered '+fmtShort(d.first_seen)):'');
-  const rvNote=rv.note?'<span class="rev-note">📝 '+esc(rv.note)+'</span>':'';
-  const cls=isRemoved?'card removed':((l.score_v2||0)>=55?'card top':'card');
-  return '<div class="'+cls+'" data-id="'+esc(l.id)+'">'+
-    '<div class="card-img">'+(thumb?'<img loading="lazy" decoding="async" src="'+esc(thumb)+'" alt="Photo of the advertised apartment">':'<span class="no-photo">No photo</span>')+'<div class="badges">'+badges+'</div></div>'+
+  const conf=l.data_confidence!=null?l.data_confidence:0;
+  const cls='card'+((l.score_v2||0)>=55?' top':'')+(rv.state==='dismissed'?' dismissed':'');
+  const actNote=isPrimaryGroup?' (this ad; the property has '+g.n_ads+' ads, each reviewed separately)':'';
+  return '<article class="'+cls+'" data-id="'+esc(l.id)+'">'+
+    '<div class="card-photo'+(thumb?'':' nophoto')+'">'+(thumb
+      ?'<img loading="lazy" decoding="async" src="'+esc(thumb)+'" alt="Photo of the advertised apartment" onerror="this.outerHTML=\'<span class=&quot;no-photo&quot; style=&quot;display:flex;align-items:center;justify-content:center;height:100%&quot;>Photo unavailable</span>\'">'
+      :'<span class="no-photo"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>No photo</span>')
+    +(badges?'<div class="photo-badge">'+badges+'</div>':'')+ribbon+'</div>'+
     '<div class="card-body">'+
-    '<div class="card-top"><div><div class="card-price">'+money(l.price_eur)+
-    (isPrimaryGroup&&g.prices_all&&g.prices_all.length>1?'<span class="grp-vals">'+g.n_ads+' asking prices: '+g.prices_all.map(p=>money(p)).join(' · ')+'</span>':'')+
-    (mv.previous?' <span class="old-price">was '+money(mv.previous)+'</span>':'')+
-    '</div><div>'+mvHtml+'</div></div>'+
-    '<div class="score-chip" title="score 0-100 (profile '+(esc(prof)||'')+'); D = data confidence %"><span class="s">'+(score!=null?score:'—')+'</span> '+prof+'<br><span class="c">D '+(l.data_confidence!=null?l.data_confidence+'%':'?%')+'</span></div></div>'+
-    '<div class="card-meta"><span>'+(l.size_sqm>0?esc(String(l.size_sqm)):'?')+'sqm</span><span>'+(l.floor!=null&&l.floor!==''?esc(String(l.floor)).slice(0,4)+' fl':'fl —')+'</span><span>'+(l.bedrooms!=null&&l.bedrooms!==''?l.bedrooms+' bd':'bd —')+'</span>'+(pricePerSqm?'<span>'+pricePerSqm+' €/sqm</span>':'')+'<span>'+esc(dateStr||'')+'</span></div>'+
-    areaHtml+
-    '<div class="card-meta">'+grp+(val?'<span>'+val+'</span>':'')+'</div>'+
-    (l.desc?'<div class="card-desc">'+esc(l.desc)+'</div>':'')+
-    consHtml+
-    '<div class="card-tags">'+tags+'</div>'+
-    rvNote+
-    '<div class="card-actions">'+
-    '<button class="mini-btn '+(rv.state==='shortlist'?'on':'')+'" onclick="setReview(\''+esc(l.id)+'\',\'shortlist\')" aria-label="Shortlist this listing" title="Shortlist">★</button>'+
-    '<button class="mini-btn '+(rv.state==='reviewed'?'on':'')+'" onclick="setReview(\''+esc(l.id)+'\',\'reviewed\')" aria-label="Mark reviewed" title="Reviewed">✓</button>'+
-    '<button class="mini-btn '+(rv.state==='dismissed'?'on':'')+'" onclick="setReview(\''+esc(l.id)+'\',\'dismissed\')" aria-label="Dismiss this listing" title="Dismiss">✗</button>'+
-    '<button class="mini-btn" onclick="addNote(\''+esc(l.id)+'\')" aria-label="Add personal note" title="Note">📝</button>'+
-    '<button class="btn" style="padding:6px 12px" onclick="openModal(\''+esc(l.id)+'\')" aria-label="Open full listing details">Details</button>'+
+    '<div class="price-row"><div class="price num">'+money(l.price_eur)+
+      ((mv.previous)?'<div class="price-sub"><span class="was num">'+money(mv.previous)+'</span>'+mvChip+'</div>':(mvChip?'<div class="price-sub">'+mvChip+'</div>':''))+
     '</div>'+
-    '<div class="card-foot">'+(l.url?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">View advertisement →</a>':'<span class="tag">snapshot card — no source link</span>')+'</div>'+
-    '</div></div>';
+    '<div class="score-block" title="Attractiveness score 0-100 for profile '+esc(prof)+'. Data confidence is a separate measure of how much verified evidence backs the listing."><span class="score-num num">'+(score!=null?score:'—')+'</span>'+
+      '<div class="score-lbl">Score /100</div>'+
+      (prof?'<div class="score-prof">'+esc(prof)+'</div>':'')+
+      '<div class="conf-bar" title="Data confidence: how much verified evidence backs this listing"><i style="width:'+conf+'%"></i></div>'+
+      '<div class="conf-lbl">'+conf+'% data confidence</div></div></div>'+
+    '<div class="loc-line">'+esc(locMain)+nbTxt+(loc.in_scope===false?' <span class="loc-warn">· outside search scope</span>':'')+mismatch+'</div>'+
+    '<div class="essentials num">'+
+      '<span><b>'+(l.size_sqm>0?esc(String(l.size_sqm)):'?')+'</b><span class="u"> m²</span></span>'+
+      '<span><b>'+(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'?')+'</b><span class="u"> bed</span></span>'+
+      '<span><b>'+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'?')+'</b><span class="u"> fl</span></span>'+
+      (pricePerSqm?'<span><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':'')+
+      (dateStr?'<span class="u" style="color:var(--muted)">'+esc(dateStr)+'</span>':'')+
+    '</div>'+
+    (grp||'')+
+    whyHtml+
+    (val?'<div class="chips">'+val+'</div>':'')+
+    (conditionChips(l)?'<div class="chips">'+conditionChips(l)+'</div>':'')+
+    (rv.note?'<div class="card-note">Note: '+esc(rv.note)+'</div>':'')+
+    '<div class="card-actions">'+
+      '<button class="act star'+(rv.state==='shortlist'?' on':'')+'" aria-pressed="'+(rv.state==='shortlist')+'" onclick="setReview(\''+esc(l.id)+'\',\'shortlist\')" title="Shortlist'+actNote+'" aria-label="Shortlist this listing'+actNote+'">★<span>Shortlist</span></button>'+
+      '<button class="act" aria-pressed="'+(rv.state==='reviewed')+'" onclick="setReview(\''+esc(l.id)+'\',\'reviewed\')" title="Mark reviewed'+actNote+'" aria-label="Mark reviewed'+actNote+'">✓<span>Reviewed</span></button>'+
+      '<button class="act" aria-pressed="'+(rv.state==='dismissed')+'" onclick="setReview(\''+esc(l.id)+'\',\'dismissed\')" title="Dismiss (reversible — appears under More filters · Dismissed)'+actNote+'" aria-label="Dismiss this listing'+actNote+'">✗<span>Dismiss</span></button>'+
+      '<button class="act" onclick="addNote(\''+esc(l.id)+'\')" title="Add or edit a personal note" aria-label="Add a personal note"><span>Note</span></button>'+
+      '<button class="act primary" onclick="openModal(\''+esc(l.id)+'\')" aria-label="Open full details for this listing">Details</button>'+
+    '</div>'+
+    '<div class="card-src">'+(l.url
+      ?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">View source advertisement ↗</a>'
+      :'<span class="nosrc">Snapshot card — no source link</span>')+'</div>'+
+    '</div></article>';
 }
 
+/* ---------------- review actions ---------------- */
 function setReview(id,state){
   const rev=reviews();
   const cur=rev[id]||{};
@@ -468,6 +755,11 @@ function setReview(id,state){
   rev[id]={state:(cur.state===state?'none':state),note:cur.note||'',at:new Date().toISOString(),snap:{price:l.price_eur,label:l.status_label||''}};
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
   refreshAfterReview(id);
+  const after=reviews()[id]||{};
+  if(after.state==='shortlist')toast('★ Shortlisted');
+  else if(after.state==='reviewed')toast('✓ Marked reviewed');
+  else if(after.state==='dismissed')toast('✗ Dismissed — undo it any time under More · Dismissed');
+  else toast('Review state cleared');
 }
 function addNote(id){
   const rev=reviews();const cur=rev[id]||{};
@@ -478,192 +770,325 @@ function addNote(id){
   localStorage.setItem(REV_KEY,JSON.stringify(rev));
   refreshAfterReview(id);
 }
-// A review-state change alters filter MEMBERSHIP (Shortlist/Reviewed/Dismissed
-// views). Re-render the visible list so cards and summary counts always agree,
-// then restore keyboard focus to the acting card.
 function refreshAfterReview(id){
   render();
   const node=document.getElementById('listings').querySelector('[data-id="'+CSS.escape(id)+'"] .card-actions');
-  if(node){const btn=node.querySelector('.mini-btn.on')||node.querySelector('.mini-btn');if(btn)btn.focus();}
+  if(node){const btn=node.querySelector('.act[aria-pressed=true]')||node.querySelector('.act');if(btn)btn.focus();}
 }
-function updateSummaryLine(){
-  const rev=reviews();
-  const n=currentList().length;
-  document.getElementById('summary').textContent=
-    (meta.total_rows||'?')+' records · '+(meta.active_rows||'?')+' active · '+
-    (meta.unique_properties||'?')+' unique properties · '+n+' in view · '+
-    Object.keys(rev).filter(k=>rev[k].state==='shortlist').length+' shortlisted · '+
-    (meta.groups_likely||'?')+' confirmed + '+(meta.groups_possible!=null?meta.groups_possible:'?')+' possible dup groups';
-}
-// small interactions patch the rendered card in place instead of rebuilding the grid
-function updateCardInPlace(id){
-  const node=document.getElementById('listings').querySelector('[data-id="'+id+'"]');
-  if(!node){render();return}
-  const l=(allListings.find(x=>x.id===id))||{};
-  const rev=reviews()[id]||{};
-  const pricePerSqm=(l.price_eur&&l.size_sqm>0)?Math.round(l.price_eur/l.size_sqm):null;
-  const rvChanged=rev.snap&&rev.snap.price&&l.price_eur&&rev.snap.price!==l.price_eur;
-  const label=l.status_label||'';
-  let badges='';
-  if(label==='NEW ON MARKET')badges+='<span class="card-badge badge-newmarket">NEW ON MARKET</span>';
-  else if(label==='NEWLY DISCOVERED')badges+='<span class="card-badge badge-newdisc">NEWLY DISCOVERED</span>';
-  else if(label==='UPDATED')badges+='<span class="card-badge badge-updated">UPDATED</span>';
-  if((l.status+'').indexOf('removed')>-1)badges+='<span class="card-badge badge-removed">GONE</span>';
-  if(rvChanged)badges+='<span class="card-badge badge-updated">CHANGED</span>';
-  if(rev.state==='shortlist')badges+='<span class="card-badge badge-review">★ SHORTLIST</span>';
-  else if(rev.state==='reviewed')badges+='<span class="card-badge badge-review">✓ REVIEWED</span>';
-  const g=l.group&&groupIndex[l.group.property_id];
-  if(g&&l.id===g.primary_id)badges+='<span class="card-badge badge-review">⧉ '+g.n_ads+' ADS</span>';
-  const badgeBox=node.querySelector('.badges');
-  if(badgeBox)badgeBox.innerHTML=badges;
-  const btns=node.querySelectorAll('.card-actions .mini-btn');
-  if(btns[0])btns[0].classList.toggle('on',rev.state==='shortlist');
-  if(btns[1])btns[1].classList.toggle('on',rev.state==='reviewed');
-  if(btns[2])btns[2].classList.toggle('on',rev.state==='dismissed');
-  let noteEl=node.querySelector('.rev-note');
-  if(rev.note){
-    if(noteEl)noteEl.innerHTML='📝 '+esc(rev.note);
-    else{const el=document.createElement('span');el.className='rev-note';el.innerHTML='📝 '+esc(rev.note);
-      node.querySelector('.card-actions').before(el)}
-  }else if(noteEl)noteEl.remove();
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);color:#fff;padding:10px 18px;border-radius:10px;z-index:90;font-size:13.5px;box-shadow:0 8px 30px #0007';document.body.appendChild(t);}
+  t.textContent=msg;t.style.display='block';
+  clearTimeout(t.__h);t.__h=setTimeout(()=>{t.style.display='none'},1800);
 }
 
-let lastFocused=null,modalToken=0;
+/* ---------------- modal ---------------- */
+let lastFocused=null,modalToken=0,galleryState={photos:[],idx:0,id:null};
 function openModal(id){
-  const token=++modalToken;            // generation token: only the newest request may render
+  const token=++modalToken;
   lastFocused=document.activeElement;
   const l=(allListings.find(x=>x.id===id));if(!l)return;
   document.getElementById('modal').classList.add('open');
+  document.body.style.overflow='hidden';
+  const mv=l.movement||{};
   document.getElementById('modalPanel').innerHTML=
-    '<button class="close" onclick="closeModal()" aria-label="Close details">✕</button>'+
-    '<h2>'+money(l.price_eur)+'</h2><div class="fmissing">Loading full details…</div>';
-  document.getElementById('modalPanel').querySelector('.close').focus();
+    '<div class="mhead"><div class="t"><div class="price num">'+money(l.price_eur)+'</div>'+
+    '<div class="sub">'+esc((l.location||{}).actual_city||l.area||'')+' · loading full details…</div></div>'+
+    '<button class="mclose" onclick="closeModal()" aria-label="Close details">✕</button></div>'+
+    '<div class="panel-inner"><div class="empty" style="padding:24px">Loading full details…</div></div>';
+  document.getElementById('modalPanel').querySelector('.mclose').focus();
   fetch('api/details/'+encodeURIComponent(id)+'.json')
     .then(r=>{if(!r.ok)throw new Error(String(r.status));return r.json()})
-    .then(d=>{if(token===modalToken)renderDetail(d)})       // stale responses are dropped
-    .catch(()=>{if(token===modalToken)renderDetail(l)});    // controlled fallback to summary data
+    .then(d=>{if(token===modalToken)renderDetail(d)})
+    .catch(()=>{if(token===modalToken)renderDetail(l)});
 }
 function openGroup(pid){
-  modalToken++;                        // invalidate any in-flight detail request
+  modalToken++;
   lastFocused=document.activeElement;
   const g=groupIndex[pid];if(!g)return;
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow='hidden';
   const rowsHtml=(g.ads||[]).map(a=>{
     const m=(allListings.find(x=>x.id===a.ad_id))||{};
     const h=(m.history||[]);
-    return '<div class="adrow"><a href="'+esc(a.url||m.url||'#')+'" target="_blank" rel="noopener noreferrer">'+esc(a.source_id||a.ad_id)+'</a>'+
-      ' — '+money(a.price_eur)+(a.instances>1?' (seen '+a.instances+'×)':'')+
-      ' <span class="sp">· score '+((m.score_v2!=null)?m.score_v2:'—')+
-      ' · '+((m.dates||{}).first_seen?('seen since '+fmtShort(m.dates.first_seen)):'?')+'</span>'+
-      ' <button class="btn" style="padding:4px 10px" onclick="openModal(\''+esc(a.ad_id)+'\')">Details</button>'+
-      (h.length>1?' <span class="sp">own history: '+h.map(p=>fmtShort(p.date)+' '+money(p.price)).join(' → ')+'</span>':'')+
+    const rev=reviews()[a.ad_id]||{};
+    return '<div class="adrow"><span class="id">'+(a.url
+      ?'<a href="'+esc(a.url)+'" target="_blank" rel="noopener noreferrer">'+esc(a.source_id||a.ad_id)+' ↗</a>'
+      :esc(a.source_id||a.ad_id))+'</span>'+
+      '<span class="num">'+money(a.price_eur)+(a.instances>1?' (seen '+a.instances+'×)':'')+'</span>'+
+      '<span class="sp">score '+((m.score_v2!=null)?m.score_v2:'—')+' · found '+fmtShort((m.dates||{}).first_seen||'')+'</span>'+
+      (rev.state&&rev.state!=='none'?'<span class="sp">'+(rev.state==='shortlist'?'★':(rev.state==='reviewed'?'✓':'✗'))+' your review</span>':'')+
+      '<button class="btn-sm" onclick="openModal(\''+esc(a.ad_id)+'\')">Details</button>'+
+      (h.length>1?'<span class="own-hist">own history: '+h.map(p=>fmtShort(p.date)+' '+money(p.price)).join(' → ')+'</span>':'')+
       '</div>';
   }).join('');
   const pr=g.prices_all||[];
-  document.getElementById('modal').classList.add('open');
   document.getElementById('modalPanel').innerHTML=
-    '<button class="close" onclick="closeModal()" aria-label="Close group view">✕</button>'+
-    '<h2>Property '+esc(g.property_id)+'</h2>'+
-    '<div>'+(g.level==='likely'?'Matched with high confidence — one physical property':'Medium confidence — verify manually')+' · '+g.n_ads+' advertisements'+
-    (pr.length>1?' · asking '+money(Math.min.apply(null,pr))+'–'+money(Math.max.apply(null,pr)):'')+'</div>'+
-    '<div class="ev">Each advertisement keeps its own price history and link; nothing is merged. If the asking prices differ, verify on the ad pages — the latest observation is the current asking price.</div>'+rowsHtml;
-  document.getElementById('modalPanel').querySelector('.close').focus();
+    '<div class="mhead"><div class="t"><div class="price num">'+(pr.length>1?money(Math.min.apply(null,pr))+' – '+money(Math.max.apply(null,pr)):money(pr[0]))+'</div>'+
+    '<div class="sub">'+g.n_ads+' advertisements · one physical property</div></div>'+
+    '<button class="mclose" onclick="closeModal()" aria-label="Close group view">✕</button></div>'+
+    '<div class="panel-inner">'+
+    '<div class="msec"><h3>Confirmed duplicate group</h3>'+
+    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched with high confidence ('+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+') — all ads below are believed to describe the <b>same physical property</b>. Each advertisement keeps its own price history and source link; nothing is merged. Where asking prices differ, verify on the ad pages — the lowest active ask is used for ranking, not as a claim of negotiating room.</p>'+rowsHtml+'</div></div>';
+  document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
-function renderDetail(l){
-  const mv=l.movement||{},ch=l.characteristics||{},d=l.dates||{},sb=l.score_breakdown||{},loc=l.location||{};
-  const det=l.detail||{};
-  const photos=(det.photo_urls||[]).filter(u=>/https:\/\/m\d+\.[a-z]+\.gr\//.test(u));
-  const tri=v=>v==='yes'?'<td class="v" style="color:var(--good)">yes</td>':(v==='no'?'<td class="v" style="color:#c9a0ff">no</td>':'<td class="v fmissing">unknown</td>');
-  let charRows='';
-  [['elevator','Elevator'],['parking','Parking'],['storage','Storage'],['heating_gas','Gas heating'],
-   ['heating_autonomous','Autonomous heating'],['furnished','Furnished'],['no_commission','No commission']].forEach(kp=>{
-    const c=ch[kp[0]]||{state:'unknown'};
-    charRows+='<tr><td>'+kp[1]+'</td>'+tri(c.state)+'<td class="ev">'+esc(c.evidence||'')+'</td></tr>';
+
+/* gallery */
+function renderGallery(photos,idx){
+  galleryState.photos=photos;galleryState.idx=idx;
+  const p=photos[idx];
+  const el=document.getElementById('gallery');
+  if(!el)return;
+  el.innerHTML=
+    '<div class="g-main" id="gMain" tabindex="0" role="button" aria-label="Enlarge photograph (photo '+(idx+1)+' of '+photos.length+'). Press Enter or Space to enlarge." onclick="openViewer()">'+
+    (p?'<img src="'+esc(p)+'" alt="Photograph '+(idx+1)+' of '+photos.length+' of the advertised apartment" onerror="this.parentElement.innerHTML=\'<span class=&quot;g-fallback&quot;>Photo unavailable (source removed it)</span>\'">':'<span class="g-fallback">No photograph available</span>')+
+    '</div>'+
+    (photos.length>1?'<button class="g-nav prev" onclick="gNav(-1)" aria-label="Previous photograph"'+(idx===0?' disabled':'')+'>‹</button>'+
+    '<button class="g-nav next" onclick="gNav(1)" aria-label="Next photograph"'+(idx===photos.length-1?' disabled':'')+'>›</button>':'')+
+    (photos.length?'<span class="g-count num">'+(idx+1)+' / '+photos.length+'</span>':'')+
+    (photos.length>1?'<div class="g-thumbs" role="group" aria-label="Photograph thumbnails">'+photos.map((u,i)=>
+      '<button class="g-thumb" aria-current="'+(i===idx)+'" onclick="gSelect('+i+')" aria-label="Show photograph '+(i+1)+'"><img loading="lazy" decoding="async" src="'+esc(u)+'" alt="Thumbnail '+(i+1)+'"></button>').join('')+'</div>':'')+
+    (photos.length>1?'<div class="g-hint">Arrow keys navigate · click the photo to enlarge</div>':'');
+  const main=document.getElementById('gMain');
+  if(main)main.addEventListener('keydown',ev=>{
+    if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openViewer();}
   });
-  if(ch.heating&&ch.heating.state&&ch.heating.state!=='unknown')
-    charRows+='<tr><td>Heating type</td><td class="v">'+esc(ch.heating.label||ch.heating.state)+'</td><td class="ev">'+esc(ch.heating.evidence||'')+'</td></tr>';
-  // ENUM characteristic (renovation) uses its own label — never the boolean formatter
-  const ren=ch.renovation||{state:'unknown',label:'Unknown condition'};
-  const renCls=(ren.state==='renovated'||ren.state==='new_build')?'var(--good)':(ren.state==='needs_renovation'?'var(--bad)':'var(--warn)');
-  const renRow='<tr><td>Renovation / condition</td><td class="v" style="color:'+renCls+'">'+esc(ren.label||"Unknown condition")+'</td><td class="ev">'+esc(ren.evidence||'')+'</td></tr>';
-  const yr=(ch.year_built||{}),en=(ch.energy_class||{});
-  const yrRow='<tr><td>Construction year</td>'+(yr.state==='known'?'<td class="v">'+yr.value+'</td>':'<td class="v fmissing">unknown</td>')+'<td class="ev">'+esc(yr.evidence||'')+'</td></tr>';
-  const enLabel=(en.state==='exempt')?'No certificate required (exempt)':(en.state==='pending')?'Certificate under issuance':null;
-  const enRow='<tr><td>Energy class</td>'+(en.state==='known'?'<td class="v">'+esc(en.value)+'</td>':(enLabel?'<td class="v">'+esc(enLabel)+'</td>':'<td class="v fmissing">unknown</td>'))+'<td class="ev">'+esc(en.evidence||'')+'</td></tr>';
-  // server-computed, unit-tested history rows (arrow = change vs PREVIOUS DISTINCT price)
+}
+function gNav(dir){
+  const n=galleryState.photos.length;if(!n)return;
+  galleryState.idx=(galleryState.idx+dir+n)%n;
+  renderGallery(galleryState.photos,galleryState.idx);
+  const m=document.getElementById('gMain');if(m)m.focus();
+}
+function gSelect(i){renderGallery(galleryState.photos,i);const m=document.getElementById('gMain');if(m)m.focus();}
+function openViewer(){
+  const photos=galleryState.photos;if(!photos.length)return;
+  viewerLastFocused=document.activeElement;
+  renderViewer(galleryState.idx);
+}
+function renderViewer(idx){
+  galleryState.idx=idx;
+  const p=photos_[idx];
+  document.getElementById('viewer').innerHTML=
+    '<button class="g-nav vclose" onclick="closeViewer()" aria-label="Close enlarged photograph">✕</button>'+
+    (photos_.length>1?'<button class="g-nav prev" style="left:12px" onclick="vNav(-1)" aria-label="Previous photograph">‹</button>'+
+    '<button class="g-nav next" style="right:12px" onclick="vNav(1)" aria-label="Next photograph">›</button>':'')+
+    '<img src="'+esc(p)+'" alt="Enlarged photograph '+(idx+1)+' of '+photos_.length+'">';
+  document.getElementById('viewer').classList.add('open');
+  const vc=document.getElementById('viewer').querySelector('.vclose');
+  if(vc)vc.focus();
+}
+let photos_=[],viewerLastFocused=null;
+function vNav(dir){const n=photos_.length;if(!n)return;renderViewer((galleryState.idx+dir+n)%n)}
+
+function renderDetail(l){
+  const mv=l.movement||{},ch=l.characteristics||{},d=l.dates||{},sb=l.score_breakdown||{},loc=l.location||{},nb=l.neighborhood_info||{};
+  const det=l.detail||{};
+  photos_=(det.photo_urls||[]).filter(u=>/https:\/\/m\d+\.[a-z]+\.gr\//.test(u));
+  galleryState={photos:photos_,idx:0,id:l.id};
+  const mvChip=(mv.direction==='down'&&mv.pct_change!=null)
+    ?'<span class="mv-chip mv-down">↓ '+Math.abs(mv.abs_change||0).toLocaleString('en-US')+' € ('+Math.abs(mv.pct_change).toFixed(1)+'%)</span>'
+    :(mv.direction==='up'&&mv.pct_change!=null?'<span class="mv-chip mv-up">↑ '+(mv.abs_change||0).toLocaleString('en-US')+' € (+'+mv.pct_change.toFixed(1)+'%)</span>':'');
+  const gp=l.group_pricing;
+  let gpTxt='';
+  if(gp&&gp.n_ads>1){
+    const rangeTxt=(gp.max_active_price>gp.min_active_price)
+      ?money(gp.min_active_price)+'–'+money(gp.max_active_price)+' asking range':'all ads ask '+money(gp.min_active_price);
+    gpTxt='<div class="sub">Same property across '+gp.n_ads+' ads: '+rangeTxt+' — ranking uses the lowest active ask ('+money(l.price_effective)+')'
+      +(gp.stale_excluded?' · '+gp.stale_excluded+(gp.stale_excluded===1?' stale ad':' stale ads')+' excluded':'')+'</div>';
+  }
+  /* overview */
+  const ppsVal=(l.price_eur&&l.size_sqm>0)?Math.round(l.price_eur/l.size_sqm):null;
+  const effVal=(l.price_effective&&l.price_effective!==l.price_eur)?l.price_effective:null;
+  const ov='<div class="msec"><h3>Overview</h3><div class="kv">'+
+    cell('Asking price','<span class="num">'+money(l.price_eur)+'</span>'+(mv.previous?' <span style="text-decoration:line-through;color:var(--muted2)" class="num">'+money(mv.previous)+'</span>':'')+(mvChip?'<div style="margin-top:4px">'+mvChip+'</div>':''))+
+    (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the confirmed group'):'' )+
+    cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):(loc.evidence||''))+
+    cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',ppsVal?'asking <span class="num">'+ppsVal+' €/m²</span>':'')+
+    cell('Bedrooms / floor',(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—'))+
+    cell('Published',d.published?fmtDate(d.published):'unknown',d.published_missing?'source did not provide this date':'from the source advertisement')+
+    cell('Found by tracker',d.first_seen?fmtDate(d.first_seen):'—')+
+    cell('Last seen',d.last_seen?fmtDate(d.last_seen):'—',l.stale?'stale — not confirmed recently':'')+
+    cell('Last price change',d.last_updated?fmtDate(d.last_updated):'—')+
+    '</div>'+(l.status_label?'<div style="margin-top:10px"><span class="pbadge '+(l.status_label==='NEW ON MARKET'?'new':(l.status_label==='NEWLY DISCOVERED'?'newdisc':'updated'))+'">'+esc(l.status_label)+'</span></div>':'')+'</div>';
+  function cell(k,v,note){return '<div class="cell"><div class="k">'+k+'</div><div class="v">'+(v||'—')+'</div>'+(note?'<div class="note">'+note+'</div>':'')+'</div>'}
+  /* assessment */
+  const conf=l.data_confidence!=null?l.data_confidence:0;
+  const factors=(sb.factors||[]);
+  const missing=factors.filter(f=>f.state!=='known').length;
+  const factorRows=factors.map(f=>{
+    const known=f.state==='known';
+    const pct=known?Math.round(100*(f.pts||0)/f.max):0;
+    return '<div class="factor'+(known?'':' miss')+'"><span class="f"><b>'+esc(f.factor)+'</b><span class="why">'+esc(f.why)+'</span></span>'+
+      (known?'<span class="bar"><i style="width:'+Math.min(100,pct)+'%"></i></span><span class="p num">'+(f.pts!=null?f.pts:'—')+' / '+f.max+'</span>'
+      :'<span class="bar na"><i style="width:100%"></i></span><span class="p">n/a</span>')+'</div>';
+  }).join('');
+  const strengths=(sb.strengths||[]).map(s=>'<span class="pro">✓ '+esc(s)+'</span>').join('');
+  const weaknesses=(sb.weaknesses||[]).map(s=>'<span class="con">! '+esc(s)+'</span>').join('');
+  const assess='<div class="msec"><h3>Investment assessment <span class="hint">attractiveness and data certainty are separate metrics</span></h3>'+
+    '<div class="assess">'+
+    '<div class="scorecard"><div class="big num">'+(l.score_v2!=null?l.score_v2:'—')+'<small> /100</small></div>'+
+    '<div class="meta">attractiveness<br>profile <b>'+esc(l.score_v2_profile||'—')+'</b>'+(l.score!=null?'<br>legacy parser score: '+l.score:'')+'</div></div>'+
+    '<div class="scorecard"><div class="big num">'+conf+'<small>%</small></div><div class="meta">data confidence<br>reliability-weighted completeness'+(missing?'<br><b>'+missing+' input'+(missing>1?'s':'')+' missing</b> — excluded from score':'')+'</div></div>'+
+    '</div>'+
+    (factorRows?'<div style="margin-top:12px">'+factorRows+'</div>':'')+
+    ((strengths||weaknesses)?'<div class="swlist">'+strengths+weaknesses+'</div>':'')+
+    '</div>';
+  /* history */
   const hist=(l.history_rows&&l.history_rows.length)?l.history_rows:(l.history||[]);
-  const histHtml=hist.length?hist.map((h,i)=>{
-    const arrow=h.direction==='down'?('<span class="mv-down">↓ '+Math.abs(h.change_eur||0).toLocaleString('en-US')+' € ('+(h.pct_change<0?'−':'+')+Math.abs(h.pct_change||0).toFixed(1)+'%)</span>')
-      :(h.direction==='up'?('<span class="mv-up">↑ '+Math.abs(h.change_eur||0).toLocaleString('en-US')+' € (+'+(h.pct_change||0).toFixed(1)+'%)</span>'):'');
-    return '<div class="histrow"><span class="d">'+esc(h.date||'')+'</span><span class="p">'+money(h.price)+'</span>'+
-      '<span class="c">'+((h.n_observations>1)?'('+(h.n_observations)+' observations) ':'')+
-      (h.direction==='first'?'first observed price':arrow)+'</span></div>';
-  }).join(''):'<div class="fmissing">No dated price observations recorded for this advertisement.</div>';
-  const factors=(sb.factors||[]).map(f=>f.state==='known'
-    ?'<tr class="frow"><td>'+esc(f.factor)+'</td><td class="v">'+f.pts+' / '+f.max+'</td><td class="ev">'+esc(f.why)+'</td></tr>'
-    :'<tr class="frow"><td class="fmissing">'+esc(f.factor)+'</td><td class="v fmissing">n/a</td><td class="ev fmissing">missing data — excluded from score</td></tr>').join('');
-  const strengths=(sb.strengths||[]).map(s=>'✓ '+esc(s)).join(' · ');
-  const grpAds=((l.group||{}).ads||[{url:l.url,source_id:l.id,price_eur:l.price_eur,ad_id:l.id}])
-    .filter(a=>a&&a.url).map(a=>'<div>· <a href="'+esc(a.url)+'" target="_blank" rel="noopener noreferrer">'+esc(a.source_id)+'</a> — '+money(a.price_eur)+' <button class="btn" style="padding:3px 10px;font-size:12px" onclick="openModal(\''+esc(a.ad_id)+'\')">details</button></div>').join('')
-    ||'<div class="fmissing">Snapshot card without a source link (snapshot extraction).</div>';
-  let locHtml='<div>Source label: <b>'+esc(loc.advertised||'—')+'</b>'+(loc.title_city&&loc.title_city!==loc.advertised_city?' · from ad title/first line: <b>'+esc(loc.title_city)+'</b>':'')+'</div>';
-  if(loc.mismatch)locHtml+='<div class="loc-warn">⚠ The advertisement text points to a different area than the search label.</div>';
-  if(loc.ambiguous)locHtml+='<div class="loc-warn">⚠ Text mentions multiple areas: '+esc((loc.actual_tags||[]).join(', '))+'.</div>';
-  locHtml+='<div class="ev">'+esc(loc.evidence||'')+'</div>';
-  if(loc.in_scope===false)locHtml+='<div class="loc-warn">Outside the configured geographic scope of this search.</div>';
-  const ppsTxt=(l.price_eur&&l.size_sqm>0)?('Asking '+Math.round(l.price_eur/l.size_sqm)+' €/sqm'):('—');
-  const valTxt=(l.valuation&&l.valuation.diff_pct_vs_median!=null)
-    ?(' · comparable median '+Math.round(l.valuation.median_pps)+' €/sqm ('+(l.valuation.diff_pct_vs_median>0?'+':'')+l.valuation.diff_pct_vs_median+'% vs median · '+l.valuation.n_comparables+' comparables) — asking prices, not completed transactions.')
-    :(' · no reliable comparable median yet.');
-  const gpTxt=(l.group_pricing&&l.group_pricing.max_active_price>l.group_pricing.min_active_price)
-    ?('<div class="ev">Same property advertised at '+money(l.group_pricing.min_active_price)+'–'+money(l.group_pricing.max_active_price)+
-      ' across '+l.group_pricing.n_ads+' ads — ranking uses the lowest active asking price ('+money(l.price_effective)+'). Verify which ad you negotiate on.</div>')
-    :'';
+  const histRows=hist.length?hist.map(h=>{
+    const arrow=h.direction==='down'?('<span class="mv-down">↓ '+Math.abs(h.change_eur||0).toLocaleString('en-US')+' € ('+Math.abs(h.pct_change||0).toFixed(1)+'%)</span>')
+      :(h.direction==='up'?('<span class="mv-up">↑ '+Math.abs(h.change_eur||0).toLocaleString('en-US')+' € (+'+Math.abs(h.pct_change||0).toFixed(1)+'%)</span>'):'');
+    return '<div class="hrow"><span class="d num">'+fmtDate(h.date)+'</span><span class="p num">'+money(h.price)+'</span>'+
+      '<span class="c">'+(h.direction==='first'?'first observed price':arrow)+((h.n_observations>1)?' ('+h.n_observations+' observations)':'')+'</span>'+
+      '<span class="src">asking price · this advertisement</span></div>';
+  }).join(''):'<div class="empty" style="padding:18px">No dated price observations recorded for this advertisement.</div>';
+  const prices=hist.map(h=>h.price).filter(Boolean);
+  const maxP=prices.length?Math.max.apply(null,prices):0;
+  const chart=(prices.length>1?'<div class="hchart" aria-hidden="true">'+prices.map(p=>'<i style="height:'+Math.max(6,Math.round(100*p/maxP))+'%"></i>').join('')+'</div>':'');
+  const histHtml='<div class="msec"><h3>Price history <span class="hint">this advertisement only — observations are real, never interpolated</span></h3>'+
+    '<div class="hist">'+chart+histRows+'</div>'+
+    '<div class="hist-note">Each advertisement keeps its own history. Repeated equal observations are collapsed; arrows show the change vs the previous distinct price level.</div></div>';
+  /* comparables */
+  const val=l.valuation||{};
+  const cmp=(l.valuation&&val.diff_pct_vs_median!=null)
+    ?'<div class="cmp-box"><div class="cmp-grid">'+
+      '<div class="cell"><div class="k">Asking €/m²</div><div class="v num">'+ppsVal+'</div></div>'+
+      '<div class="cell"><div class="k">Area median</div><div class="v num">'+Math.round(val.median_pps)+' €/m²</div></div>'+
+      '<div class="cell"><div class="k">Difference</div><div class="v num '+(val.diff_pct_vs_median<0?'good':(val.diff_pct_vs_median>0?'bad':''))+'">'+(val.diff_pct_vs_median>0?'+':'')+val.diff_pct_vs_median+'%</div></div>'+
+      '<div class="cell"><div class="k">Comparables</div><div class="v num">'+val.n_comparables+'</div></div>'+
+      '</div><div class="disclaimer">⚠ <b>Asking-price comparison, not a completed-transaction valuation.</b> The median comes from current asking prices of comparable ads in the same verified area and size band. It does not prove market value or a discount you can capture.</div></div>'
+    :'<div class="empty" style="padding:18px">No reliable comparable median yet (needs ≥8 comparable asking prices in the same area and size band).</div>';
+  const cmpHtml='<div class="msec"><h3>Comparable asking prices</h3>'+cmp+'</div>';
+  /* characteristics + evidence */
+  const stateBadge=c=>{
+    const s=c.state;
+    if(s==='yes')return '<span class="state yes">✓ confirmed yes</span>';
+    if(s==='no')return '<span class="state no">✗ confirmed no</span>';
+    if(s==='conflict')return '<span class="state conflict">⚠ conflict</span>';
+    if(s==='unknown')return '<span class="state unknown">? unknown</span>';
+    return '<span class="state enum">'+esc(c.label||s)+'</span>';
+  };
+  const evRow=(name,c)=>{if(!c)return '';
+    return '<div class="charrow"><span class="name">'+name+'</span>'+stateBadge(c)+
+      (c.evidence?'<details><summary>evidence</summary><div class="evid">'+esc(c.evidence)+(c.source?' · source: '+esc(c.source):'')+'</div></details>':'')+'</div>';};
+  const ren=ch.renovation||{state:'unknown',label:'Unknown condition'};
+  const cond='<div class="charsec"><h4>Condition & construction</h4>'+
+    evRow('Renovation / condition',ren)+
+    (ch.construction_status?evRow('Construction status',Object.assign({},ch.construction_status,{label:ch.construction_status.label||({under_construction:'Under construction',planned:'Off-plan / planned',completed:'Completed',unknown:'Unknown'})[ch.construction_status.state]||ch.construction_status.state})):'')+
+    (ch.year_built?evRow('Construction year',ch.year_built):'')+
+    '</div>';
+  const facilities='<div class="charsec"><h4>Facilities</h4>'+
+    evRow('Elevator',ch.elevator||{state:'unknown'})+
+    evRow('Parking',ch.parking||{state:'unknown'})+
+    evRow('Storage',ch.storage||{state:'unknown'})+
+    evRow('Furnished',ch.furnished||{state:'unknown'})+
+    evRow('No agency commission',ch.no_commission||{state:'unknown'})+
+    '</div>';
+  const en=ch.energy_class||{};
+  const heat='<div class="charsec"><h4>Heating & energy</h4>'+
+    evRow('Heating type',ch.heating||{state:'unknown'})+
+    (en?evRow('Energy class',Object.assign({},en,{label:en.state==='known'?en.value:(en.state==='exempt'?'Exempt — no certificate required':(en.state==='pending'?'Certificate under issuance':'unknown'))})):'')+
+    '</div>';
+  const charsHtml='<div class="msec"><h3>Characteristics & evidence <span class="hint">✓ confirmed · ✗ confirmed absent · ? unknown · ⚠ conflicting sources</span></h3>'+
+    '<div style="font-size:12.5px;color:var(--muted);margin:-4px 0 10px">Unselected portal checkboxes are treated as <b>unknown</b>, not confirmed absence. “no” requires an explicit statement in the advertisement text.</div>'+
+    cond+facilities+heat+'</div>';
+  /* all advertisements */
+  const gads=(l.group&&l.group.n_ads>1)?(l.group.ads||[]):[];
+  const adsHtml=gads.length
+    ?'<div class="msec"><h3>All advertisements <span class="hint">'+(l.group.level==='likely'?'confirmed same property':'unverified possible duplicates')+'</span></h3>'+
+     (l.group.level!=='likely'?'<div style="font-size:12.5px;color:var(--warn);margin:-4px 0 8px">⚠ Possible duplicates are hypotheses — the ads are <b>not</b> confirmed to describe the same property.</div>':'')+
+     gads.map(a=>{
+       const m=(allListings.find(x=>x.id===a.ad_id))||{};
+       const h=(m.history||[]);
+       const diff=[];
+       if(m.size_sqm&&l.size_sqm&&m.size_sqm!==l.size_sqm)diff.push('size '+m.size_sqm+' m²');
+       if(m.price_eur&&l.price_eur&&m.price_eur!==l.price_eur)diff.push('asks '+money(m.price_eur));
+       return '<div class="adrow"><span class="id">'+(a.url?'<a href="'+esc(a.url)+'" target="_blank" rel="noopener noreferrer">'+esc(a.source_id||a.ad_id)+' ↗</a>':esc(a.source_id||a.ad_id))+'</span>'+
+       '<span class="num">'+money(a.price_eur)+'</span>'+
+       '<span class="sp">found '+fmtShort((m.dates||{}).first_seen||'')+'</span>'+
+       (diff.length?'<span class="sp">differs: '+diff.join(' · ')+'</span>':'')+
+       '<button class="btn-sm" onclick="openModal(\''+esc(a.ad_id)+'\')">Details</button>'+
+       (h.length>1?'<span class="own-hist">own history: '+h.map(p=>fmtShort(p.date)+' '+money(p.price)).join(' → ')+'</span>':'')+
+       '</div>';}).join('')+
+     '<div class="hist-note" style="margin-top:8px">Different asking prices do not necessarily mean negotiating room — verify which ad you would negotiate on.</div></div>'
+    :((l.url)?'<div class="msec"><h3>Original advertisement</h3><div class="adrow"><span class="id"><a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">Open source advertisement ↗</a></span></div></div>'
+      :'<div class="msec"><h3>Original advertisement</h3><div class="empty" style="padding:14px">Snapshot card — captured from search results without a source link.</div></div>');
+  /* description */
+  const desc=(det.description||l.desc||'');
+  const descHtml=desc?'<div class="msec"><h3>Advertisement description</h3><div class="desc-block">'+esc(desc)+'</div><div class="src-lang">Original Greek source text, shown verbatim.</div></div>':'';
+  /* gallery section */
+  const galHtml='<div class="msec"><h3>Photographs</h3><div class="gallery" id="gallery"></div>'+
+    (!photos_.length?'':'')+'</div>';
+  const city=loc.actual_city?loc.actual_city[0].toUpperCase()+loc.actual_city.slice(1):(l.area||'');
+  const nbTxt=nb.neighborhood?' · '+esc(nb.neighborhood):'';
   document.getElementById('modalPanel').innerHTML=
-    '<button class="close" onclick="closeModal()" aria-label="Close details">✕</button>'+
-    '<h2>'+money(l.price_eur)+' '+(mv.direction==='down'?'<span class="mv-down">↓ '+Math.abs(mv.abs_change||0).toLocaleString('en-US')+' € ('+(mv.pct_change<0?'−':'+')+Math.abs(mv.pct_change||0).toFixed(1)+'%)</span>':(mv.direction==='up'?'<span class="mv-up">↑ +'+(mv.pct_change||0).toFixed(1)+'%</span>':''))+'</h2>'+
-    '<div class="card-area">'+esc(l.area||'')+(loc.mismatch?' ('+esc(loc.actual_city)+')':'')+'</div>'+
-    gpTxt+
-    '<h3>Overview</h3><table>'+
-    '<tr><td>Size</td><td class="v">'+(l.size_sqm>0?esc(String(l.size_sqm))+' sqm':'—')+'</td><td class="ev">'+ppsTxt+'</td></tr>'+
-    '<tr><td>Bedrooms / floor</td><td class="v">'+(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—')+'</td><td class="ev"></td></tr>'+
-    '<tr><td>Published</td><td class="v">'+(d.published?esc(d.published):'unknown')+'</td><td class="ev">'+(d.published_missing?'the source did not provide this date':'from the source advertisement')+'</td></tr>'+
-    '<tr><td>Discovered by tracker</td><td class="v">'+(d.first_seen?esc(d.first_seen):'—')+'</td><td class="ev"></td></tr>'+
-    '<tr><td>Last seen</td><td class="v">'+(d.last_seen?esc(d.last_seen):'—')+'</td><td class="ev">'+(l.stale?'stale — not confirmed for a long time':'')+'</td></tr>'+
-    '<tr><td>Last price update / checked</td><td class="v">'+(d.last_updated?esc(d.last_updated):'—')+' · '+(d.last_checked?esc(d.last_checked):'—')+'</td><td class="ev"></td></tr>'+
-    '<tr><td>Score / data confidence</td><td class="v">'+(l.score_v2!=null?l.score_v2:'—')+' ('+esc(l.score_v2_profile||'')+') / '+(l.data_confidence!=null?l.data_confidence+'%':'—')+'</td><td class="ev">attractiveness and data quality are separate metrics'+((l.score!=null)?(' · legacy parser score: '+l.score):'')+'</td></tr></table>'+
-    (l.status_label?'<div style="margin-top:6px"><span class="card-badge '+(l.status_label==='NEW ON MARKET'?'badge-newmarket':(l.status_label==='NEWLY DISCOVERED'?'badge-newdisc':'badge-updated'))+'">'+esc(l.status_label)+'</span></div>':'')+
-    '<h3>Score explanation'+(l.score_v2_profile?' ('+esc(l.score_v2_profile)+'-profile)':'')+'</h3><table>'+factors+'</table>'+
-    (strengths?'<div style="margin-top:6px">Strengths: '+strengths+'</div>':'')+
-    ((sb.weaknesses||[]).length?'<div style="margin-top:4px;color:var(--warn)">Watch-outs: '+sb.weaknesses.map(s=>esc(s)).join(' · ')+'</div>':'')+
-    '<h3>Price history</h3>'+histHtml+
-    '<h3>Characteristics</h3><table>'+charRows+renRow+yrRow+enRow+'</table>'+
-    '<h3>Location</h3>'+locHtml+
-    '<h3>Description</h3><p style="white-space:pre-wrap;max-height:240px;overflow:auto;font-size:13px">'+esc(det.description||l.desc||'')+'</p>'+
-    (photos.length?'<h3>Photos</h3><div class="ph">'+photos.map((u,i)=>'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Photo '+(i+1)+'</a>').join('')+'</div>':'')+
-    '<h3>Original advertisement'+(((l.group||{}).n_ads>1)?'s (all '+l.group.n_ads+' ads)':'')+'</h3><div class="ph">'+grpAds+'</div>';
-  const c=document.getElementById('modalPanel').querySelector('.close');
-  if(c)c.focus();
+    '<div class="mhead"><div class="t"><div class="price num">'+money(l.price_eur)+'</div>'+
+    '<div class="sub">'+esc(city)+nbTxt+(l.score_v2!=null?' · score '+l.score_v2+' ('+esc(l.score_v2_profile||'')+ ')':'')+(conf!=null?' · '+conf+'% confidence':'')+'</div>'+gpTxt+'</div>'+
+    '<button class="mclose" onclick="closeModal()" aria-label="Close details">✕</button></div>'+
+    '<div class="panel-inner">'+galHtml+ov+assess+histHtml+cmpHtml+charsHtml+adsHtml+descHtml+'</div>';
+  renderGallery(photos_,0);
+  document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
 function closeModal(){
-  modalToken++;                        // no stale response may update a closed modal
+  modalToken++;
+  closeViewer();
   document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow='';
   document.getElementById('modalPanel').innerHTML='';
   if(lastFocused&&lastFocused.focus)lastFocused.focus();
   lastFocused=null;
 }
+function closeViewer(){
+  document.getElementById('viewer').classList.remove('open');
+  document.getElementById('viewer').innerHTML='';
+  if(viewerLastFocused&&viewerLastFocused.focus){try{viewerLastFocused.focus()}catch(e){}}
+  viewerLastFocused=null;
+}
+
+/* keyboard: modal trap, gallery arrows, Escape chains viewer→modal */
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')closeModal();
-  // focus trap: keep Tab inside the open modal panel
+  if(e.key==='Escape'){
+    if(document.getElementById('viewer').classList.contains('open')){closeViewer();return}
+    if(document.getElementById('modal').classList.contains('open')){closeModal();return}
+  }
+  if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&document.getElementById('viewer').classList.contains('open')){vNav(e.key==='ArrowLeft'?-1:1);return}
+  if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&document.getElementById('modal').classList.contains('open')&&galleryState.photos.length>1){
+    const t=e.target;
+    if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;
+    gNav(e.key==='ArrowLeft'?-1:1);return;
+  }
   if(e.key==='Tab'&&document.getElementById('modal').classList.contains('open')){
     const panel=document.getElementById('modalPanel');
-    const f=panel.querySelectorAll('button,[href],input,select,textarea');
+    const f=panel.querySelectorAll('button,[href],input,select,textarea,details summary,[tabindex]:not([tabindex="-1"])');
     if(!f.length)return;
     const first=f[0],last=f[f.length-1];
     if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
   }
 });
-document.getElementById('refreshBtn').addEventListener('click',loadAll);
+/* swipe support for the gallery */
+(function(){
+  let sx=null;
+  document.addEventListener('touchstart',e=>{if(document.getElementById('viewer').classList.contains('open')||(document.getElementById('modal').classList.contains('open')&&galleryState.photos.length>1))sx=e.touches[0].clientX;},{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(sx==null)return;
+    const dx=e.changedTouches[0].clientX-sx;sx=null;
+    if(Math.abs(dx)<40)return;
+    if(document.getElementById('viewer').classList.contains('open'))vNav(dx>0?-1:1);
+    else if(document.getElementById('modal').classList.contains('open')&&galleryState.photos.length>1)gNav(dx>0?-1:1);
+  },{passive:true});
+})();
+
+/* ---------------- menu + import/export ---------------- */
+const menuBtn=document.getElementById('menuBtn'),menuPop=document.getElementById('menuPop');
+menuBtn.addEventListener('click',()=>{
+  const open=menuPop.classList.toggle('open');
+  menuBtn.setAttribute('aria-expanded',String(open));
+});
+document.addEventListener('click',e=>{if(!menuPop.contains(e.target)&&!menuBtn.contains(e.target)){menuPop.classList.remove('open');menuBtn.setAttribute('aria-expanded','false')}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menuPop.classList.contains('open')){menuPop.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');menuBtn.focus()}});
+document.getElementById('refreshBtn').addEventListener('click',()=>{menuPop.classList.remove('open');loadAll();toast('↻ Page data reloaded (no new collection)')});
 document.getElementById('exportBtn').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify({format:'house-tracker-reviews-v1',exported:new Date().toISOString(),reviews:reviews()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='house-tracker-reviews.json';a.click();
@@ -678,8 +1103,6 @@ document.getElementById('importFile').addEventListener('change',e=>{
       const parsed=JSON.parse(rd.result);
       const incoming=(parsed&&parsed.reviews)?parsed.reviews:parsed;
       if(typeof incoming!=='object'||incoming===null||Array.isArray(incoming))throw new Error('unexpected file format');
-      // VALIDATE BEFORE MERGING: no partial writes, no prototype pollution,
-      // listing-id keys only, whitelisted states, bounded notes.
       const VALID_STATES=['shortlist','reviewed','dismissed','none'];
       const ID_RE=/^[A-Za-z0-9_.\-]{3,64}$/;
       const clean={};let imported=0,skipped=0;
@@ -700,40 +1123,67 @@ document.getElementById('importFile').addEventListener('change',e=>{
       let notesKept=0;
       for(const k of Object.keys(clean)){
         const cur=rev[k]||{};
-        if(!clean[k].note&&cur.note){clean[k].note=cur.note;notesKept++;} // conflict rule: import wins on state, existing notes survive
+        if(!clean[k].note&&cur.note){clean[k].note=cur.note;notesKept++;}
         rev[k]=clean[k];
       }
       localStorage.setItem(REV_KEY,JSON.stringify(rev));
       render();
-      alert('Imported '+imported+' review decision(s)'+(notesKept?' ('+notesKept+' existing notes kept)':'')+
-            (skipped?' · skipped '+skipped+' invalid entr(ies)':'')+'.');
+      toast('Imported '+imported+' decision(s)'+(notesKept?' ('+notesKept+' notes kept)':'')+(skipped?' · skipped '+skipped+' invalid':''));
     }catch(err){alert('Import failed: '+err.message+' — no changes were made.')}
   };
   rd.readAsText(f);
-  e.target.value='';   // allow re-importing the same file
+  e.target.value='';
 });
-// persist UI state (filter/sort/search) across reloads
+
+/* ---------------- UI state (migrates the old shape) ---------------- */
+function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify(ui))}catch(e){}}
 (function(){
   try{
     const st=JSON.parse(localStorage.getItem(UI_KEY))||{};
-    if(st.filter)setSelect('filter',st.filter);
-    if(st.sort)setSelect('sort',st.sort);
-    if(st.search)document.getElementById('search').value=st.search;
+    if(st.profile&&PROFILES.includes(st.profile))ui.profile=st.profile;
+    if(st.quick)ui.quick=st.quick;
+    if(st.more!=null)ui.more=st.more;
+    if(st.sort)ui.sort=st.sort;
+    if(st.search)ui.search=st.search;
+    // migrate the legacy single-dropdown shape {filter,...}
+    if(st.filter&&!st.quick){
+      const old=st.filter;
+      if(PROFILES.includes(old))ui.profile=old;
+      else if(old==='all')ui.more='allads';
+      else if(['newmarket','newdisc','updated','reduced','increased','grouped','removed','top','legacy'].includes(old)){
+        if(['newmarket','reduced'].includes(old))ui.quick=old;else ui.more=old;
+      }else if(['shortlisted','reviewed','dismissed'].includes(old))ui.quick=old;
+    }
   }catch(e){}
-  function setSelect(id,v){
-    const el=document.getElementById(id);
-    for(const o of el.options){if(o.value===v){el.value=v;return}}
-  }
-  ['filter','sort','search'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.addEventListener(id==='search'?'input':'change',function(){
-      try{
-        localStorage.setItem(UI_KEY,JSON.stringify({
-          filter:document.getElementById('filter').value,
-          sort:document.getElementById('sort').value,
-          search:(document.getElementById('search').value||'').slice(0,200)}));
-      }catch(e){}
+  // reflect state into the controls
+  document.querySelectorAll('.profile-tab').forEach(b=>{
+    if(b.dataset.profile===ui.profile)b.setAttribute('aria-selected','true');
+    b.addEventListener('click',()=>{ui.profile=b.dataset.profile;saveUI();render()});
+  });
+  document.querySelectorAll('.qbtn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      ui.quick=(ui.quick===b.dataset.quick?'all':b.dataset.quick);
+      if(ui.quick==='reviewed')ui.more='';saveUI();render();
     });
+  });
+  const more=document.getElementById('moreFilters');
+  if(ui.more)more.value=ui.more;
+  more.addEventListener('change',()=>{ui.more=more.value;saveUI();render()});
+  const sort=document.getElementById('sort');
+  if(ui.sort)sort.value=ui.sort;
+  sort.addEventListener('change',()=>{ui.sort=sort.value;saveUI();render()});
+  const search=document.getElementById('search');
+  if(ui.search)search.value=ui.search;
+  let debT=null;
+  search.addEventListener('input',()=>{
+    ui.search=search.value;
+    document.getElementById('searchClear').style.display=ui.search?'':'none';
+    clearTimeout(debT);
+    debT=setTimeout(()=>{saveUI();render()},150);
+  });
+  document.getElementById('searchClear').addEventListener('click',()=>{search.value='';ui.search='';saveUI();render();search.focus()});
+  document.getElementById('shortlistBtn').addEventListener('click',()=>{
+    ui.quick=(ui.quick==='shortlisted'?'all':'shortlisted');saveUI();render();
   });
 })();
 loadAll();
