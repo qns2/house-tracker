@@ -116,6 +116,7 @@ button{font:inherit;color:inherit}
 .grp-box b{font-size:13.5px}
 .grp-box .note{color:var(--muted2);font-size:12px;width:100%}
 .possible-chip{border:1px solid var(--border2);background:var(--surface2);border-radius:10px;padding:8px 12px;font-size:12.5px;color:var(--muted)}
+.xref-chip{border-color:#4f7dd9;background:rgba(79,125,217,.10);color:#b7c9ec}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:12.5px;border-radius:8px;padding:4px 10px;background:var(--surface2);border:1px solid transparent;color:var(--text2)}
 .chip.yes{color:#9ff0c5;background:#16301f}.chip.no{color:#e0b9ff;background:#2e2144}.chip.mid{color:#ffd58e;background:#3a3018}.chip.mut{color:var(--muted)}
@@ -373,14 +374,16 @@ function fmtDataFresh(iso){
 function reviews(){try{return JSON.parse(localStorage.getItem(REV_KEY))||{}}catch(e){return{}}}
 
 /* ---------------- data load ---------------- */
+let XREF={generated_at:null,refs:{}};   // cross-portal duplicate leads (annotation-only sidecar)
 async function loadAll(){
   try{
     const t0=performance.now();
-    const[lRes,mRes]=await Promise.all([
+    const[lRes,mRes,xRes]=await Promise.all([
       fetch('api/listings').then(r=>r.json()),
-      fetch('api/meta').then(r=>r.json()).catch(()=>({}))
+      fetch('api/meta').then(r=>r.json()).catch(()=>({})),
+      fetch('api/cross_portal.json').then(r=>r.json()).catch(()=>({refs:{}}))
     ]);
-    allListings=lRes;meta=mRes||{};
+    allListings=lRes;meta=mRes||{};XREF=xRes||{refs:{}};
     buildSearchStrings();buildGroupIndex();
     const up=meta.last_scan_at?('Last data: <b>'+fmtDataFresh(meta.last_scan_at)+'</b> · daily refresh ~11:00 (Athens)'):'';
     document.getElementById('freshness').innerHTML=up;
@@ -689,6 +692,16 @@ function cardHtml(l,rev){
   }else if(isPossible){
     grp='<div class="possible-chip">⚠ Possible duplicate — '+l.group.n_ads+' similar ads (unverified match; each ad stays listed separately)</div>';
   }
+  // cross-portal leads (annotation only — never grouped, never scored)
+  let xlead='';
+  const xl=(XREF.refs||{})[l.id];
+  if(xl&&xl.length){
+    const vmL=xl.filter(r=>r.kind==='vm').map(r=>esc(r.portal)+' '+(r.price?money(r.price):'')).join(', ');
+    const stL=xl.filter(r=>r.kind==='store').map(r=>'<b>'+esc(r.code)+'</b>').join(', ');
+    xlead='<div class="possible-chip xref-chip" title="Cross-portal duplicate lead — open details for evidence">⇄ Cross-portal lead'
+      +(vmL?' — also listed at '+vmL:'')
+      +(stL?' — same property as '+stL+' (cross-portal evidence)':'')+'</div>';
+  }
   // valuation
   let val='';
   if(l.valuation&&l.valuation.diff_pct_vs_median!=null){
@@ -729,7 +742,7 @@ function cardHtml(l,rev){
       (pricePerSqm?'<span><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':'')+
       (dateStr?'<span class="u" style="color:var(--muted)">'+esc(dateStr)+'</span>':'')+
     '</div>'+
-    (grp||'')+
+    (grp||'')+(xlead||'')+
     whyHtml+
     (val?'<div class="chips">'+val+'</div>':'')+
     (conditionChips(l)?'<div class="chips">'+conditionChips(l)+'</div>':'')+
@@ -1014,6 +1027,19 @@ function renderDetail(l){
      '<div class="hist-note" style="margin-top:8px">Different asking prices do not necessarily mean negotiating room — verify which ad you would negotiate on.</div></div>'
     :((l.url)?'<div class="msec"><h3>Original advertisement</h3><div class="adrow"><span class="id"><a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">Open source advertisement ↗</a></span></div></div>'
       :'<div class="msec"><h3>Original advertisement</h3><div class="empty" style="padding:14px">Snapshot card — captured from search results without a source link.</div></div>');
+  /* cross-portal & duplicate leads (annotation-only sidecar) */
+  const xleads=(XREF.refs||{})[l.id]||[];
+  const TIER={'photo_match':['Photo match','identical listing photograph'],
+    'verified':['Verified match','vision-model comparison of the actual rooms'],
+    'possible':['Possible match','metadata agreement only — not verified'],
+    'unverified':['Unverified','comparison could not be completed']};
+  const xrefHtml=xleads.length?'<div class="msec"><h3>Cross-portal & duplicate leads <span class="hint">leads, not groups — ads stay independent</span></h3>'+
+    xleads.map(r=>{const t=TIER[r.tier]||['Lead',''];const target=r.kind==='vm'
+      ?'<a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">'+esc(r.portal)+' '+esc(r.code)+' ↗</a>'+(r.price?' <span class="num">'+money(r.price)+'</span>':'')
+      :((allListings.find(x=>x.id===r.code))?'<button class="btn-sm" onclick="openModal(\''+esc(r.code)+'\')">Ad '+esc(r.code)+'</button>':'Ad '+esc(r.code));
+      return '<div class="adrow"><span class="id">'+target+'</span><span class="sp">'+esc(t[0])+' — '+esc(t[1])+'</span>'+(r.meta_score!=null?'<span class="sp">metadata score '+r.meta_score+'</span>':'')+'</div>'
+        +(r.evidence?'<div class="own-hist">'+esc(r.evidence)+'</div>':'');}).join('')+
+    (XREF.generated_at?'<div class="hist-note">Leads generated '+esc(XREF.generated_at)+' by cross-portal comparison (photo hashing + vision verification). Display-only — never grouped, never scored.</div>':'')+'</div>':'';
   /* description */
   const desc=(det.description||l.desc||'');
   const descHtml=desc?'<div class="msec"><h3>Advertisement description</h3><div class="desc-block">'+esc(desc)+'</div><div class="src-lang">Original Greek source text, shown verbatim.</div></div>':'';
@@ -1026,7 +1052,7 @@ function renderDetail(l){
     '<div class="mhead"><div class="t"><div class="price num">'+money(l.price_eur)+'</div>'+
     '<div class="sub">'+esc(city)+nbTxt+(l.score_v2!=null?' · score '+l.score_v2+' ('+esc(l.score_v2_profile||'')+ ')':'')+(conf!=null?' · '+conf+'% confidence':'')+'</div>'+gpTxt+'</div>'+
     '<button class="mclose" onclick="closeModal()" aria-label="Close details">✕</button></div>'+
-    '<div class="panel-inner">'+galHtml+ov+assess+histHtml+cmpHtml+charsHtml+adsHtml+descHtml+'</div>';
+    '<div class="panel-inner">'+galHtml+ov+assess+histHtml+cmpHtml+charsHtml+adsHtml+xrefHtml+descHtml+'</div>';
   renderGallery(photos_,0);
   document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
