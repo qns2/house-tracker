@@ -108,6 +108,7 @@ button{font:inherit;color:inherit}
 .fy-fin th,.fy-fin td{border-bottom:1px solid var(--border);padding:4px 6px;text-align:left}
 .fy-fin th{color:var(--muted2);font-weight:500;font-size:11.5px}
 .fy-fin tr.tot td{font-weight:600;border-top:1px solid var(--border)}
+.fy-prov-badge{display:inline-block;margin-left:6px;padding:0 7px;border:1px solid var(--border2,var(--border));border-radius:999px;font-size:10.5px;white-space:nowrap;color:var(--muted2);vertical-align:1px}
 .fy-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;font-size:13px}
 .fy-cols ul{margin:4px 0 0;padding-left:16px;color:var(--text)}
 .fy-cols .dim,.dim{color:var(--muted2)}
@@ -636,6 +637,39 @@ const FY_FACTOR_LABELS={floor:'Floor level',lighting:'Natural light',corner:'Cor
 let FY={fits:null,ranked:null,prefsMod:{},payload:null,entries:{},err:null,contract:null,open:{}};
 function fyEdits(){try{const p=JSON.parse(localStorage.getItem(FY_PREFS_KEY))||{};return p.edits||{}}catch(e){return{}}}
 function fySaveEdits(edits){localStorage.setItem(FY_PREFS_KEY,JSON.stringify({version:2,edits:edits}));}
+/* P1-B one-time migration: legacy preference multipliers
+   ('houseTracker.foryouPrefs.v1' / 'houseTracker.foryouPrefs') move into the
+   versioned FY_PREFS_KEY record exactly once. An existing VALID v2 record is
+   NEVER overwritten; invalid or absent legacy data is removed either way so
+   it cannot resurrect on a later load. Runs before any edits read (fyBoot). */
+function migrateFyPrefs(){
+  const LEGACY=['houseTracker.foryouPrefs.v1','houseTracker.foryouPrefs'];
+  const purgeLegacy=()=>{LEGACY.forEach(lk=>{try{localStorage.removeItem(lk);}catch(e){}});};
+  let cur=null;
+  try{cur=JSON.parse(localStorage.getItem(FY_PREFS_KEY));}catch(e){cur=null;}
+  // purge legacy keys EVEN when a valid v2 record already exists — dead
+  // legacy data must not resurrect on later loads (review REV fix)
+  if(cur&&cur.version===2&&cur.edits&&typeof cur.edits==='object'&&!Array.isArray(cur.edits)){purgeLegacy();return;}
+  const edits={};
+  for(const lk of LEGACY){                      // first non-empty legacy wins
+    let raw=null;
+    try{raw=JSON.parse(localStorage.getItem(lk));}catch(e){raw=null;}
+    if(raw==null||typeof raw!=='object'||Array.isArray(raw))continue;
+    // accept {edits:{...}} or a bare {factor: multiplier} map
+    const src=(raw.edits&&typeof raw.edits==='object'&&!Array.isArray(raw.edits))?raw.edits:raw;
+    for(const k of Object.keys(src)){
+      if(!FY_FACTOR_LABELS[k]||Object.keys(edits).length>=5)continue;  // cap 5 entries
+      const v=+src[k];
+      if(Number.isFinite(v)&&v>0.1&&v<=3)edits[k]=Math.round(v*100)/100;
+    }
+    if(Object.keys(edits).length)break;
+  }
+  if(Object.keys(edits).length){
+    try{localStorage.setItem(FY_PREFS_KEY,JSON.stringify({version:2,edits:edits}));}catch(e){}
+    console.info('foryou prefs migrated from v1');
+  }
+  LEGACY.forEach(lk=>{try{localStorage.removeItem(lk);}catch(e){}});  // invalid data must not resurrect
+}
 /* Load + validate the frozen snapshot; all scoring happens locally, synchronously */
 function fyValidate(p){
   if(!p||p.version!==1||p.generated_for!=='browser-engine')return false;
@@ -643,6 +677,7 @@ function fyValidate(p){
   return p.entries.every(e=>e&&typeof e.id==='string'&&Array.isArray(e.factors));
 }
 function fyBoot(force){
+  migrateFyPrefs();   // legacy prefs migrate BEFORE any edits read (idempotent)
   if(!force&&FY.payload&&FY.fits)return;
   FY.err='loading';FY.fits=FY.fits||{};FY.ranked=FY.ranked||{};
   fetch('api/foryou.json').then(r=>{if(!r.ok)throw new Error(String(r.status));return r.json();})
@@ -665,16 +700,23 @@ function fyRecompute(){
 function fyRefresh(){fyRecompute();render();}
 function fyRetry(){FY.err=null;fyBoot(true);}
 function fmtK(v){return v==null?'—':('€'+Math.round(v).toLocaleString('el-GR'))}
-function fyFeasClass(f){return f==='within_budget'?'fy-ok':(f==='potentially_within_budget_after_negotiation'?'fy-mid':(f==='over_budget'?'fy-bad':'fy-unknown'))}
-function fyFeasLabel(f){return f==='within_budget'?'Within budget':(f==='potentially_within_budget_after_negotiation'?'Potentially in budget after negotiation':(f==='over_budget'?'Over budget':(f==='insufficient_information'?'Insufficient information':'—')))}
+function fyFeasClass(f){return ({within_budget:'fy-ok',within_budget_optimistic:'fy-mid',negotiation_required:'fy-mid',over_budget:'fy-bad',insufficient_information:'fy-unknown'})[f]||'fy-unknown'}
+function fyFeasLabel(f){return ({within_budget:'Within budget',within_budget_optimistic:'Fits only if renovation stays low',negotiation_required:'Needs negotiation',over_budget:'Over budget',insufficient_information:'Insufficient information'})[f]||'—'}
 function fyStrip(l){
   if(ui.profile!=='foryou')return'';
   const fe=FY.fits&&FY.fits[l.id];if(!fe)return'';
   const ff=fe.financial,pf=fe.personal;
-  const mo=ff.max_affordable_offer?(ff.max_affordable_offer.expected!=null?' · max offer '+fmtK(ff.max_affordable_offer.expected):''):'';
-  return '<div class="fy-strip '+fyFeasClass(ff.feasibility)+'" title="Personal fit vs €250k all-in budget (purchase + acquisition + renovation + contingency)">'
+  const feas=ff.feasibility;
+  // on negotiation/over-budget rows the max-offer chip is REPLACED by the
+  // required-discount chip (the priced gap, not a promise); within/optimistic
+  // rows keep the max offer
+  const disc=((feas==='negotiation_required'||feas==='over_budget')&&ff.required_discount_eur!=null&&ff.required_discount_pct!=null)
+    ?' · −'+fmtK(ff.required_discount_eur)+' ('+Math.round(ff.required_discount_pct*100)+'% off)':'';
+  const mo=((feas==='within_budget'||feas==='within_budget_optimistic')&&ff.max_affordable_offer&&ff.max_affordable_offer.expected!=null)
+    ?' · max offer '+fmtK(ff.max_affordable_offer.expected):'';
+  return '<div class="fy-strip '+fyFeasClass(ff.feasibility)+'" title="Personal fit vs '+((FY.payload&&FY.payload.budget)||250000)+' € all-in budget (purchase + acquisition + renovation + contingency)">'
     +'<b>Personal '+Math.round(pf.score)+'</b><span class="u">·</span>All-in '+fmtK(ff.all_in&&ff.all_in.expected)
-    +'<span class="u">·</span><span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'+mo+'</div>';
+    +'<span class="u">·</span><span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'+disc+mo+'</div>';
 }
 function setReviewReason(id,key){
   const rev=reviews();const cur=rev[id]||{};
@@ -1264,7 +1306,11 @@ function renderDetail(l){
   if(gp&&gp.n_ads>1){
     const rangeTxt=(gp.max_active_price>gp.min_active_price)
       ?money(gp.min_active_price)+'–'+money(gp.max_active_price)+' asking range':'all ads ask '+money(gp.min_active_price);
-    gpTxt='<div class="sub">'+((l.group&&l.group.level)==='confirmed'?'Same property across':'Likely duplicate group (unverified hypothesis) across')+' '+gp.n_ads+' ads: '+rangeTxt+' — ranking uses the lowest active ask ('+money(l.price_effective)+')'
+    // CONFIRMED groups rank on the verified shared price; LIKELY groups price
+    // each ad at its OWN ask — their shared low is only an unverified LEAD
+    gpTxt='<div class="sub">'+((l.group&&l.group.level)==='confirmed'
+      ?'Same property across '+gp.n_ads+' ads: '+rangeTxt+' — ranking uses the shared price ('+money(l.price_effective)+')'
+      :'Likely duplicate group (unverified hypothesis) across '+gp.n_ads+' ads: '+rangeTxt+' — each ad is priced at its OWN asking price; the group\u2019s shared low '+money(gp.min_active_price)+' is a LEAD — an unverified same-property hypothesis, not a financial fact')
       +(gp.stale_excluded?' · '+gp.stale_excluded+(gp.stale_excluded===1?' stale ad':' stale ads')+' excluded':'')+'</div>';
   }
   /* overview */
@@ -1476,6 +1522,28 @@ function fySection(id){
   const moTxt=mo?('max affordable offer <b>'+fmtK(mo.expected)+'</b> (range '+fmtK(mo.low)+'–'+fmtK(mo.high)+')'
     +(ff.asking_vs_max_offer!=null?' — asking is '+fmtK(Math.abs(ff.asking_vs_max_offer))+(ff.asking_vs_max_offer>0?' above':' below')+' its midpoint':'')):'max offer requires verified condition';
   const renoNotes=((ff.renovation||{}).notes||[]).length?'<div class="dim" style="font-size:12.5px">'+esc((ff.renovation||{}).notes.slice(0,2).join(' · '))+'</div>':'';
+  // Renovation scope — provenance (24 Nov corrective pass): component-level
+  // evidence classes travel in the frozen payload; an older payload without
+  // the provenance object hides this sub-table entirely
+  const PROV_BADGE={buyer_confirmed:'Confirmed by buyer',ad_evidence:'From the ad',provisional_allowance:'Provisional allowance',unknown:'Verify on site'};
+  const PROV_TITLE={
+    buyer_confirmed:'component the buyer explicitly named — evidence from their own assessment of the property',
+    ad_evidence:'supported by structured evidence in the ad itself (e.g. window-replacement signals)',
+    provisional_allowance:'condition-class / package allowance from the costing model — NOT verified; confirm on site',
+    unknown:'no derivable cost from the ad — verify on site before relying on it'};
+  const provRows=(ff.renovation&&ff.renovation.provenance&&ff.renovation.components&&ff.renovation.components.length)
+    ?('<table class="fy-fin"><thead><tr><th>Renovation scope — provenance</th><th>Low</th><th>Expected</th><th>High</th></tr></thead><tbody>'
+      +ff.renovation.components.map(c=>{
+        const pv=(c&&c.provenance)||'unknown';
+        const eur=(c&&c.eur)||{};
+        return '<tr><td>'+esc((c&&(c.label||c.key))||'—')+' <span class="fy-prov-badge" title="'+esc(PROV_TITLE[pv]||PROV_TITLE.unknown)+'">'+esc(PROV_BADGE[pv]||PROV_BADGE.unknown)+'</span></td>'
+          +'<td class="num">'+fmtK(eur.low)+'</td><td class="num">'+fmtK(eur.expected)+'</td><td class="num">'+fmtK(eur.high)+'</td></tr>';
+      }).join('')
+      +'</tbody></table>'):'';
+  // Price-cut block: the required discount is a PRICED gap, never a claim
+  // about what a seller would accept
+  const cutNote=(ff.feasibility==='negotiation_required'||ff.feasibility==='over_budget')&&ff.required_discount_eur!=null&&ff.required_discount_pct!=null
+    ?'<div class="fy-note">Price cut required: <b>−'+fmtK(ff.required_discount_eur)+'</b> ('+Math.round(ff.required_discount_pct*100)+'% off the '+fmtK(ff.asking_price)+') — what a seller would accept is UNKNOWN; no such inference is made.</div>':'';
   return '<div class="msec fy"><h3>★ For You — personal fit & affordability</h3>'
     +'<div class="fy-head ' +fyFeasClass(ff.feasibility)+'"><span class="fy-big">Personal '+Math.round(pf.score)+'</span>'
     +'<span class="fy-feas">'+fyFeasLabel(ff.feasibility)+'</span>'
@@ -1489,7 +1557,8 @@ function fySection(id){
     +scenRow('Contingency',ff.contingency)
     +'<tr class="tot"><td>All-in total (asking '+fmtK(ff.asking_price)+')'+(ff.all_in&&ff.all_in.expected!=null?(ff.all_in.expected<=(FY.contract?FY.contract.budget:FY.payload&&FY.payload.budget||250000)?' ✓ fits':' ✗ over'):' · unknown — condition not verified')+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.low)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.expected)+'</td><td class="num">'+fmtK(ff.all_in&&ff.all_in.high)+'</td></tr>'
     +'</tbody></table>'
-    +'<div class="fy-note">'+moTxt+'</div>'+renoNotes
+    +provRows
+    +'<div class="fy-note">'+moTxt+'</div>'+cutNote+renoNotes
     +'<div class="disclaimer">⚠ Affordability estimate, not a market-value or seller-acceptance claim. Transfer-tax exemption eligibility and agent commission are configurable assumptions ('+(ff.assumptions_note?'see below':'financing_assumptions.json')+') — not assumed in your favor.</div>'
     +'<div class="dim" style="font-size:12px">Pricing basis: '
     +(ent.price_label==='group-confirmed'
@@ -1580,7 +1649,7 @@ document.getElementById('importFile').addEventListener('change',e=>{
         rev[k]=clean[k];
       }
       localStorage.setItem(REV_KEY,JSON.stringify(rev));
-      render();
+      fyRecompute();render();   // imported reviews/dismissal reasons + pref multipliers affect recommendations immediately (sync)
       toast('Imported '+imported+' decision(s)'+(notesKept?' ('+notesKept+' notes kept)':'')+(skipped?' · skipped '+skipped+' invalid':''));
     }catch(err){alert('Import failed: '+err.message+' — no changes were made.')}
   };
