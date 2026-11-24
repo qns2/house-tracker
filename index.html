@@ -96,6 +96,7 @@ button{font:inherit;color:inherit}
 .fy-strip.fy-bad{border-color:rgba(230,90,80,.4);background:rgba(230,90,80,.07)}
 .fy-strip .fy-feas{font-weight:600}
 .alsos-chip{color:#bfe8c8;border-color:rgba(87,209,147,.4)!important}
+.hall-chip{color:#bcd8f0;border-color:rgba(140,190,235,.45)!important}
 .fy-strip.fy-ok .fy-feas{color:#7ed8a0}.fy-strip.fy-mid .fy-feas{color:#f0b446}.fy-strip.fy-bad .fy-feas{color:#ff9d94}.fy-strip.fy-unknown .fy-feas{color:var(--muted)}
 .fy-reasons{margin:2px 0 8px}
 .fy-toggle{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 0;text-decoration:underline dotted}
@@ -337,6 +338,7 @@ button{font:inherit;color:inherit}
   <button class="profile-tab" role="tab" data-profile="B_residence_2br" aria-selected="false" title="Profile B — 2-bed residence 80-140 sqm, personal home, Nea Smyrni (Ano excluded), floor 2+, up to €250K">B · 2-Bed Residence <small>Nea Smyrni</small></button>
   <button class="profile-tab" role="tab" data-profile="C_piraeus_univ_1br" aria-selected="false" title="Profile C — 1-bed investment, Piraeus center near the University of Piraeus, 50-60 sqm, floor 2+, up to €250K">C · Piraeus 1-Bed <small>University area</small></button>
   <button class="profile-tab" role="tab" data-profile="D_rent_2br" aria-selected="false" title="Rent — 2-3 bed, 80-100 sqm, 3rd floor+, €800-1000/month, Nea Smyrni; 'near Alsos' flag on ads whose text names the park; 'Alsos first' sort available">D · Rent <small>Near Alsos</small></button>
+  <button class="profile-tab" role="tab" data-profile="E_rent_marousi_2br" aria-selected="false" title="Rent — exactly 2 bedrooms, any size, floor 1+, up to €700/month, whole Marousi; 'Near city hall' flag on ads whose description names the town hall / Plateia Iroou; city-hall-first sort available">E · Rent <small>Marousi</small></button>
 </nav>
 
 <div class="toolbar">
@@ -370,6 +372,7 @@ button{font:inherit;color:inherit}
       <option value="change_recent">Most recent movement</option>
       <option value="newest">Newest listings</option>
       <option class="d-opt" value="alsos_first" hidden>Neighbor to Alsos first</option>
+      <option class="e-opt" value="cityhall_first" hidden>Near city hall first</option>
       <option value="size_desc">Largest size</option>
       <option value="price_desc">Highest price</option>
       <option value="pps_desc">Highest €/sqm</option>
@@ -399,7 +402,7 @@ button{font:inherit;color:inherit}
 <script>
 let allListings=[],meta={},groupIndex={},searchStrings=new Map();
 const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
-const PROFILES=['all','foryou','A_investment_1br','B_residence_2br','C_piraeus_univ_1br','D_rent_2br'];
+const PROFILES=['all','foryou','A_investment_1br','B_residence_2br','C_piraeus_univ_1br','D_rent_2br','E_rent_marousi_2br'];
 const ui={profile:'all',quick:'all',more:'',sort:'score',search:''};
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function pps(l){const p=l.price_effective||l.price_eur;return (p&&l.size_sqm>0)?p/l.size_sqm:1e9}
@@ -535,7 +538,7 @@ function rowMatches(l,filter,rev){
     case'shortlisted':return !!(rev[l.id]&&rev[l.id].state==='shortlist');
     case'reviewed':return !!(rev[l.id]&&rev[l.id].state==='reviewed');
     case'dismissed':return !!(rev[l.id]&&rev[l.id].state==='dismissed');
-    case'A_investment_1br':case'B_residence_2br':case'C_piraeus_univ_1br':case'D_rent_2br':{
+    case'A_investment_1br':case'B_residence_2br':case'C_piraeus_univ_1br':case'D_rent_2br':case'E_rent_marousi_2br':{
       // qualification = COMPUTED eligibility from verified attributes, never the
       // discovery search label (search_ids stays provenance only)
       const el=(l.eligibility||{})[filter];
@@ -553,7 +556,7 @@ function matchesFilter(l,filter,rev){
   return rowMatches(l,filter,rev);
 }
 // views that collapse likely groups to one primary card
-const GROUPED_VIEWS=['quickall','newmarket','newdisc','updated','reduced','increased','top','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br','D_rent_2br','foryou'];
+const GROUPED_VIEWS=['quickall','newmarket','newdisc','updated','reduced','increased','top','shortlisted','reviewed','A_investment_1br','B_residence_2br','C_piraeus_univ_1br','D_rent_2br','E_rent_marousi_2br','foryou'];
 function collapsedView(){
   if(ui.more==='allads')return false;   // explicit ungrouped view
   const activeMore=ui.more||'';
@@ -620,6 +623,8 @@ function sortList(list){
       case'size_desc':return (b.size_sqm||0)-(a.size_sqm||0);
       case'newest':return dateOf(b).localeCompare(dateOf(a));
       case'alsos_first':return (b.alsos_near?1:0)-(a.alsos_near?1:0)   // park-adjacent ads first (D profile)
+                            ||pps(a)-pps(b);
+      case'cityhall_first':return (b.city_hall_near?1:0)-(a.city_hall_near?1:0)   // town-hall-adjacent ads first (E profile)
                             ||pps(a)-pps(b);
       default:return (b.score_v2!=null?b.score_v2:(b.score||0))-(a.score_v2!=null?a.score_v2:(a.score||0));
     }
@@ -831,8 +836,10 @@ function render(onDone){
   document.querySelectorAll('.profile-tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.profile===ui.profile)));
   document.querySelectorAll('.fy-opt').forEach(o=>{o.hidden=ui.profile!=='foryou';});
   document.querySelectorAll('.d-opt').forEach(o=>{o.hidden=ui.profile!=='D_rent_2br';});
+  document.querySelectorAll('.e-opt').forEach(o=>{o.hidden=ui.profile!=='E_rent_marousi_2br';});
   if(ui.profile!=='foryou'&&/^foryou_/.test(ui.sort||'')){ui.sort='score';document.getElementById('sort').value='score';}
   if(ui.profile!=='D_rent_2br'&&ui.sort==='alsos_first'){ui.sort='score';document.getElementById('sort').value='score';}
+  if(ui.profile!=='E_rent_marousi_2br'&&ui.sort==='cityhall_first'){ui.sort='score';document.getElementById('sort').value='score';}
   document.getElementById('searchClear').style.display=ui.search?'':'none';
   // active filter chips
   const chips=[];
@@ -929,9 +936,9 @@ function render(onDone){
   window.__renderMs=Math.round(performance.now()-t0);
   if(typeof onDone==='function')onDone();
 }
-const PROFILE_LABELS={foryou:'For You — personal fit × affordability',A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed',D_rent_2br:'Profile D · Rent 2-3 Bed (near Alsos)'};
-const PROFILE_SHORT={foryou:'For You',A_investment_1br:'Profile A',B_residence_2br:'Profile B',C_piraeus_univ_1br:'Profile C',D_rent_2br:'Profile D · Rent'};
-const PROFMAP={A:'A_investment_1br',B:'B_residence_2br',C:'C_piraeus_univ_1br'};
+const PROFILE_LABELS={foryou:'For You — personal fit × affordability',A_investment_1br:'Profile A · 1-Bed Investment',B_residence_2br:'Profile B · 2-Bed Residence',C_piraeus_univ_1br:'Profile C · Piraeus 1-Bed',D_rent_2br:'Profile D · Rent 2-3 Bed (near Alsos)',E_rent_marousi_2br:'Profile E · Rent 2 Bed · Marousi (near city hall)'};
+const PROFILE_SHORT={foryou:'For You',A_investment_1br:'Profile A',B_residence_2br:'Profile B',C_piraeus_univ_1br:'Profile C',D_rent_2br:'Profile D · Rent',E_rent_marousi_2br:'Profile E · Rent'};
+const PROFMAP={A:'A_investment_1br',B:'B_residence_2br',C:'C_piraeus_univ_1br',D:'D_rent_2br',E:'E_rent_marousi_2br'};
 const QUICK_LABELS={newmarket:'New on market',reduced:'Price reductions',reviewed:'Reviewed'};
 function clearFilter(kind){
   if(kind==='profile')ui.profile='all';
@@ -1085,6 +1092,7 @@ function cardHtml(l,rev){
     '</div>'+
     (grp||'')+(elChip||'')+(xlead||'')+
     (l.alsos_near?'<div class="possible-chip alsos-chip" title="The ad\'s own text names the Alsos / park of Nea Smyrni (text signal from the ad, not a geocode)">🌳 Near Alsos (per ad text)</div>':'')+
+    (l.city_hall_near?'<div class="possible-chip hall-chip" title="The ad\'s own description names the Marousi town hall (δημαρχείο) or Plateia Iroou (text signal from the ad, not a geocode)">🏛 Near city hall (per ad text)</div>':'')+
     whyHtml+
     (val?'<div class="chips">'+val+'</div>':'')+
     (conditionChips(l)?'<div class="chips">'+conditionChips(l)+'</div>':'')+
