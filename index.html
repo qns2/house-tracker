@@ -398,7 +398,7 @@ button{font:inherit;color:inherit}
 </div>
 <div id="viewer" role="dialog" aria-modal="true" aria-label="Enlarged photograph" onclick="if(event.target===this)closeViewer()"></div>
 
-<script src="foryou_engine.js?v1"></script>
+<script src="foryou_engine.js?v=ef74d07c"></script>
 <script>
 let allListings=[],meta={},groupIndex={},searchStrings=new Map();
 const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
@@ -435,6 +435,20 @@ async function loadAll(){
       fetch('api/cross_portal.json').then(r=>r.json()).catch(()=>({refs:{}}))
     ]);
     allListings=lRes;meta=mRes||{};XREF=xRes||{refs:{}};window.__loadedAt=new Date();
+    // Cache-version guard (remediation sprint Phase 5): the engine reference is
+    // content-hashed at publish time and the SAME hash is stamped into
+    // api/meta.dataset_version. On mismatch a cached tab is running old scoring
+    // logic against new data — reload once (guard flag prevents loops).
+    (function(){
+      try{
+        const m=document.querySelector('script[src*="foryou_engine.js"]');
+        const pageV=(m&&m.src.split('v=')[1]||'').split('&')[0];
+        const dataV=meta.dataset_version;
+        if(dataV&&pageV&&dataV!==pageV&&!sessionStorage.__vReloaded){
+          sessionStorage.__vReloaded='1';location.reload();return;
+        }
+      }catch(e){}
+    })();
     fyBoot();
     buildSearchStrings();buildGroupIndex();
     const up=meta.last_scan_at?('Last data: <b>'+fmtDataFresh(meta.last_scan_at)+'</b> · daily refresh ~11:00 (Athens)'):'';
@@ -1015,7 +1029,7 @@ function cardHtml(l,rev){
     grp='<div class="grp-box"><b>'+g.n_ads+' advertisements — '+
       (g.level==='confirmed'?'confirmed duplicate group (strong-evidence standard)':'likely duplicate group')+
       (g.similarity_pct!=null?' <span class="u">(similarity '+g.similarity_pct+'%)</span>':'')+'</b>'
-      +(l.price_effective!=null&&l.price_effective!==l.price_eur?'<span class="num">ranks at <b>'+money(l.price_effective)+'</b> (lowest active ask)</span>':'')
+      +(l.price_effective!=null&&l.price_effective!==l.price_eur?'<span class="num">ranks at <b>'+money(l.price_effective)+'</b> (confirmed-group low — this ad is the same verified property)</span>':'')
       +(pr.length>1?'<span class="num">'+money(Math.min.apply(null,pr))+'–'+money(Math.max.apply(null,pr))+' range</span>':'')
       +(gp.stale_excluded?'<span class="note">'+gp.stale_excluded+(gp.stale_excluded===1?' stale ad':' stale ads')+' excluded from the effective price</span>':'')
       +'<button class="act" style="min-height:34px;padding:5px 10px" onclick="openGroup(\''+esc(g.property_id)+'\')" aria-label="Show all '+g.n_ads+' advertisements for this property">View all ads</button></div>';
@@ -1086,7 +1100,7 @@ function cardHtml(l,rev){
       (l.is_rent
         ?((l.price_eur?'<span title="Monthly rent — this ad is a rental listing"><b>€'+(l.price_eur).toLocaleString('en-US')+'</b><span class="u"> /μήνα</span></span>':'')
           +((l.price_eur&&l.size_sqm>0)?'<span title="Rent €/m² per month, on this ad\'s own monthly rent"><b>'+Math.round(l.price_eur/l.size_sqm)+'</b><span class="u"> €/m²</span></span>':''))
-        :(pricePerSqm?'<span title="€/m² on the ranking price — the lowest active ask for grouped properties"><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':''))+
+        :(pricePerSqm?'<span title="€/m² on the ranking price — the ad\'s own ask; confirmed same-property groups share their lowest verified ask"><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':''))+
       (dateStr?'<span class="u" style="color:var(--muted)">'+esc(dateStr)+'</span>':'')+
       (freshChip||'')+
     '</div>'+
@@ -1260,7 +1274,7 @@ function openGroup(pid){
     '<button class="mclose" onclick="closeModal()" aria-label="Close group view">✕</button></div>'+
     '<div class="panel-inner">'+
     '<div class="msec"><h3>'+(g.level==='confirmed'?'Confirmed duplicate group (strong-evidence standard)':'Likely duplicate group')+'</h3>'+
-    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched on description similarity '+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+' — an algorithmic score, not a probability of sameness'+(g.level==='confirmed'?' (meets the documented strong-evidence standard)':'')+'. All ads below are believed to describe the <b>same physical property</b>'+(g.level==='confirmed'?' (confirmed: shared photographic evidence)':' but are <b>NOT confirmed</b> — the match is a high-similarity hypothesis.')+'. Each advertisement keeps its own price history and source link; nothing is merged. Where asking prices differ, verify on the ad pages — the lowest active ask is used for ranking, not as a claim of negotiating room.</p>'+rowsHtml+'</div></div>';
+    '<p style="font-size:13.5px;color:var(--muted);margin:0 0 10px">Matched on description similarity '+(g.confidence!=null?Math.round(g.confidence*100)+'%':'')+' — an algorithmic score, not a probability of sameness'+(g.level==='confirmed'?' (meets the documented strong-evidence standard)':'')+'. All ads below are believed to describe the <b>same physical property</b>'+(g.level==='confirmed'?' (confirmed: shared photographic evidence)':' but are <b>NOT confirmed</b> — the match is a high-similarity hypothesis.')+'. Each advertisement keeps its own price history and source link; nothing is merged. Each ad ranks on its OWN asking price; only confirmed same-property groups use their lowest verified ask as a shared ranking basis.</p>'+rowsHtml+'</div></div>';
   document.getElementById('modalPanel').querySelector('.mclose').focus();
 }
 
@@ -1338,9 +1352,9 @@ function renderDetail(l){
   const ppsEff=(effVal&&l.size_sqm>0)?Math.round(effVal/l.size_sqm):null;
   const ov='<div class="msec"><h3>Overview</h3><div class="kv">'+
     cell('Asking price','<span class="num">'+money(l.price_eur)+'</span>'+(mv.previous?' <span style="text-decoration:line-through;color:var(--muted2)" class="num">'+money(mv.previous)+'</span>':'')+(mvChip?'<div style="margin-top:4px">'+mvChip+'</div>':''))+
-    (effVal?cell('Effective (lowest active ask)','<span class="num">'+money(effVal)+'</span>','across the '+((l.group&&l.group.level)==='confirmed'?'confirmed':'likely-grouped')+' ads'):'' )+
+    (effVal?cell('Ranking basis (confirmed-group low)','<span class="num">'+money(effVal)+'</span>','the shared basis of the '+((l.group&&l.group.level)==='confirmed'?'confirmed':'grouped')+' ads; otherwise this ad ranks on its own ask'):'')+
     cell('Location',esc((loc.actual_city||l.area||'—'))+(nb.neighborhood?' — '+esc(nb.neighborhood):''),loc.mismatch?'advertised as '+esc(loc.advertised||'')+(loc.evidence?' · '+esc(loc.evidence):''):esc(loc.evidence||''))+
-    cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',(ppsEff?'asking <span class="num">'+ppsVal+' €/m²</span> · ranks at <span class="num">'+ppsEff+' €/m²</span> (lowest active ask)':(ppsVal?'<span class="num">'+ppsVal+' €/m²</span>':'')))+
+    cell('Size',l.size_sqm>0?'<span class="num">'+esc(String(l.size_sqm))+' m²</span>':'—',(ppsEff?'asking <span class="num">'+ppsVal+' €/m²</span> · ranks at <span class="num">'+ppsEff+' €/m²</span> (own ask or confirmed-group low)':(ppsVal?'<span class="num">'+ppsVal+' €/m²</span>':'')))+
     cell('Bedrooms / floor',(l.bedrooms!=null&&l.bedrooms!==''?esc(String(l.bedrooms)):'—')+' / '+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'—'))+
     cell('Published',d.published?fmtDate(d.published):'unknown',d.published_missing?'source did not provide this date':'from the source advertisement')+
     cell('Found by tracker',d.first_seen?fmtDate(d.first_seen):'—')+

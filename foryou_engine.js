@@ -825,13 +825,18 @@
       var disSum = disKeys.reduce(function (acc, k) { return acc + disW[k]; }, 0);
 
       var matched = {}, penalties = {}, pairScores = [];
+      var covNum = 0.0, covDen = 0.0;
       favs.forEach(function (ftab) {
         var credit = -1.2 * disSum;
         var attain = 0.0;
+        var favTotal = 0.0;
         PERSONAL_FACTORS.forEach(function (pf) {
           var key = pf[0];
           var c = rtab[key], f = ftab[key];
           var qc = c ? c.q : null, qf = f ? f.q : null;
+          if (qf !== null && qf !== undefined) {
+            favTotal += pf[1] * evidW(f.ev);
+          }
           if (qc === null || qc === undefined || qf === null || qf === undefined) {
             return;          // unknown on either side contributes nothing
           }
@@ -852,14 +857,22 @@
         });
         var s = attain > 0 ? Math.max(-1.0, Math.min(1.0, credit / attain)) : 0.0;
         pairScores.push(s);
+        covNum += attain;
+        covDen += favTotal;
         disKeys.forEach(function (dkey) {   // 1.2x dismissal, capped per label
           penalties[dkey] = Math.max(penalties[dkey] || 0, 1.2 * disW[dkey]);
         });
       });
       var S = pairScores.reduce(function (acc, v) { return acc + v; }, 0)
         / pairScores.length;
+      // EVIDENCE COVERAGE (remediation 26 Nov) — exact mirror of the python
+      // reference: agreement is rescaled by how much of the favorites'
+      // scorable evidence the candidate RESOLVES. Proportional reliability,
+      // not a cap: fully-resolved candidates keep their score.
+      var conf = covDen > 0 ? Math.min(1.0, covNum / covDen) : 0.0;
       out[e.id] = {
-        sim: pyRound(100 * Math.max(0, S), 1),
+        sim: pyRound(100 * Math.max(0, S) * conf, 1),
+        coverage: Math.round(conf * 1000) / 1000,
         matched: topLabels(matched),
         penalties: topLabels(penalties),
       };
