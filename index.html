@@ -405,7 +405,7 @@ const REV_KEY='houseTracker.reviews.v1', UI_KEY='houseTracker.ui.v1';
 const PROFILES=['all','foryou','A_investment_1br','B_residence_2br','C_piraeus_univ_1br','D_rent_2br','E_rent_marousi_2br'];
 const ui={profile:'all',quick:'all',more:'',sort:'score',search:''};
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function pps(l){const p=l.price_effective||l.price_eur;return (p&&l.size_sqm>0)?p/l.size_sqm:1e9}
+function pps(l){const p=l.is_rent?l.price_eur:(l.price_effective||l.price_eur);return (p&&l.size_sqm>0)?p/l.size_sqm:1e9}
 const effPrice=l=>l.price_effective||l.price_eur||1e9;
 function money(n){return (n!=null&&n!==0)?Number(n).toLocaleString('en-US')+' €':''}
 function fmtShort(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7):'—'}
@@ -1085,7 +1085,7 @@ function cardHtml(l,rev){
       '<span><b>'+(l.floor!=null&&l.floor!==''?esc(String(l.floor)):'?')+'</b><span class="u"> fl</span></span>'+
       (l.is_rent
         ?((l.price_eur?'<span title="Monthly rent — this ad is a rental listing"><b>€'+(l.price_eur).toLocaleString('en-US')+'</b><span class="u"> /μήνα</span></span>':'')
-          +(pricePerSqm?'<span title="Rent €/m² per month"><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':''))
+          +((l.price_eur&&l.size_sqm>0)?'<span title="Rent €/m² per month, on this ad\'s own monthly rent"><b>'+Math.round(l.price_eur/l.size_sqm)+'</b><span class="u"> €/m²</span></span>':''))
         :(pricePerSqm?'<span title="€/m² on the ranking price — the lowest active ask for grouped properties"><b>'+pricePerSqm+'</b><span class="u"> €/m²</span></span>':''))+
       (dateStr?'<span class="u" style="color:var(--muted)">'+esc(dateStr)+'</span>':'')+
       (freshChip||'')+
